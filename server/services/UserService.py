@@ -1,7 +1,4 @@
 import DTOs
-from http import HTTPStatus
-import random
-import string
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from DbController import get_db
@@ -9,6 +6,16 @@ from DbController import get_db
 class UserService():
     def __init__(self):
         self.phash = PasswordHasher()
+
+    def user_exists(self, login: str) -> bool:
+        db = get_db()
+        try:
+            cursor = db.cursor()
+            cursor.execute("SELECT user_id FROM app_users WHERE login = ?;", (login,))
+            return cursor.fetchone() is not None
+        except Exception as e:
+            print("Database error:", e)
+
 
     def register_user(self, reg_dto: DTOs.RegisterDTO):
         if not self.is_password_secure(reg_dto.password):
@@ -46,11 +53,11 @@ class UserService():
         
         return hasLower and hasUpper and hasDigit and hasSpecialCharacter
     
-    def verify_login(self, login_dto: DTOs.LoginDTO):
+    def verify_login(self, login_dto: DTOs.LoginDTO) -> bool | int:
         db = get_db()
         try:
             cursor = db.cursor()
-            cursor.execute("SELECT password FROM app_users WHERE login = ?;", (login_dto.login,))
+            cursor.execute("SELECT user_id, password FROM app_users WHERE login = ?;", (login_dto.login,))
             user = cursor.fetchone()
             
             if user is None:
@@ -58,7 +65,7 @@ class UserService():
             
             try:
                 self.phash.verify(user['password'], login_dto.password)
-                return True
+                return user['user_id']
             except VerifyMismatchError as e:
                 print("Verifyerror:", e)
                 return False
