@@ -19,8 +19,10 @@ def prepare_database():
 
             CREATE TABLE IF NOT EXISTS messages(
                 message_id INTEGER PRIMARY KEY,
+                content TEXT NOT NULL,
                 sender_id INTEGER NOT NULL,
                 receiver_id INTEGER NOT NULL,
+                key TEXT NOT NULL,
                 date_sent DATETIME NOT NULL,
                 is_read INTEGER DEFAULT 0,
                 FOREIGN KEY (sender_id) REFERENCES app_users(user_id),
@@ -32,6 +34,7 @@ def prepare_database():
                 message_id INTEGER NOT NULL,
                 name TEXT NOT NULL,
                 content blob NOT NULL,
+                key TEXT NOT NULL,
                 FOREIGN KEY (message_id) REFERENCES messages(message_id)
             );
             """

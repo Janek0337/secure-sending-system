@@ -1,16 +1,23 @@
-from flask import Flask, render_template, jsonify, redirect, request, flash, url_for
+from flask import Flask, render_template, jsonify, redirect, request, flash, url_for, make_response
 import requests
 import DTOs
 import KeyManager
 import Ciphrer
 from http import HTTPStatus
 import os
+import base64
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 server_address = "http://127.0.0.1:5000"
 key_manager = KeyManager.KeyManager()
 ciphrer = Ciphrer.AES_cipherer()
+
+def encode_bytes_to_b64(b):
+    return base64.b64encode(b).decode('utf-8')
+
+def decode_bytes_from_b64(b):
+    return base64.b64decode(b)
 
 @app.route('/')
 def index():
@@ -29,15 +36,24 @@ def login():
     }
     try:
         res = requests.post(url=server_address+"/login", json=payload)
+        my_res = make_response(redirect(url_for('menu')))
         if res.status_code == HTTPStatus.OK:
             print("Udane logowanie")
+            token = res.json().get('access-token')
+            if token:
+                my_res.set_cookie(
+                    'access-token',
+                    token,
+                    # httponly=True, TODO: uncomment later
+                    samesite='Lax'
+                )
         else:
             print("Nieudane logowanie")
 
+        return my_res
+
     except requests.exceptions.RequestException as e:
         print("Exception:", e)
-
-    return f"Koniec"
 
 @app.route('/register', methods=["GET", "POST"])
 def register():
@@ -91,18 +107,32 @@ def message():
         data = attachment[1]
         encrypted_data, data_key = ciphrer.encrypt_data(data) # aes
         encrypted_data_key = key_manager.encrypt_data(data_key, receiver_key) # rsa
-        ready_attachment_list.append(((filename, encrypted_data), encrypted_data_key))
+        ready_attachment_list.append(((filename, encode_bytes_to_b64(encrypted_data)), encode_bytes_to_b64(encrypted_data_key)))
         
     to_send = DTOs.MessageDTO(
         receiver=receiver,
-        content=(encrypted_message, encrypted_message_key),
+        content=(encode_bytes_to_b64(encrypted_message), encode_bytes_to_b64(encrypted_message_key)),
         attachments=ready_attachment_list
         )
+
+    token = request.cookies.get('access-token')
+    if not token:
+        flash("Authentication token is missing!", "error")
+        return redirect(url_for('login'))
+
+    cookies = {'access-token': token}
+
+    print(f"Sending: {to_send.model_dump()}")
+    res = requests.post(url=server_address + "/message", json=to_send.model_dump(), cookies=cookies)
+    if res.status_code == HTTPStatus.CREATED:
+        flash(f"Sent message to {receiver}", "success")
+    else:
+        flash(f"Couldnt send message, code: {res.status_code}", "error")
+    return redirect(url_for('menu'))
     
-    print(f"Sending: {jsonify(to_send)}")
-    res = requests.post(url = server_address + "/message", json = jsonify(to_send))
-    #if res.status_code == 200:
-    
+@app.route('/menu', methods=["GET"])
+def menu():
+    return render_template("menu.html")
 
 if __name__ == "__main__":
     app.run(debug=True, port=3045)

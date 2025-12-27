@@ -51,38 +51,30 @@ class JWT_manager():
         signature = self.make_signature(payload64).decode("utf-8") # now it's a text to make it sendable in JSON
         return self.header64.decode("utf-8") + '.' + payload64.decode("utf-8") + '.' + signature
 
-    def validate_jwt_token(self, uid, token: str, login) -> bool :
+    def validate_jwt_token(self, token: str) -> None | dict :
         try:
             header, payload, signature = token.split('.')
-        except ValueError as e:
+        except Exception as e:
             print("Invalid token structure:", e)
-            return False
+            return None
 
         intended_signature = self.make_signature(payload.encode("utf-8")).decode("utf-8")
         if not hmac.compare_digest(signature, intended_signature):
             print("Invalid signature")
-            return False
+            return None
 
         if header.encode("utf-8") != self.header64:
             print("Incorrect header")
-            return False
+            return None
 
         try:
             payload_dict = json.loads(self.safe_base64_decode(payload).decode("utf-8"))
 
             if int(time.time()) > payload_dict.get("exp", 0):
                 print("Expired token")
-                return False
+                return None
 
-            if str(payload_dict.get("sub")) != str(uid):
-                print("Invalid uid")
-                return False
-
-            if payload_dict.get("username") != login:
-                print("Invalid login")
-                return False
-
-            return True
+            return {'username': payload_dict['username'], 'uid': payload_dict['sub']}
         except (json.JSONDecodeError, TypeError, AttributeError) as e:
             print("Invalid payload data:", e)
-            return False
+            return None

@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+
+{% block title %}Send message{% endblock %}
+
+{% block content %}
+    <h1>Send new message</h1>
+
+    <form id="mainForm" action="#" method="POST" enctype="multipart/form-data">
+        
+        <p>
+            <label for="receiver">Receiver:</label><br>
+            <input type="text" id="receiver" name="receiver" required>
+        </p>
+
+        <p>
+            <label for="message">Message:</label><br>
+            <textarea id="message" name="message" rows="4" cols="30" required></textarea>
+        </p>
+
+        <p>
+            <label for="attachment">Add attachments (you can add multiple times):</label><br>
+            <input type="file" id="attachment" multiple>
+        </p>
+
+        <p>
+            <strong>All added attachments:</strong>
+            <ul id="file-list">
+                <li>No files</li>
+            </ul>
+        </p>
+
+        <p>
+            <button type="submit">Send</button>
+        </p>
+
+    </form>
+
+    <script>
+        const fileInput = document.getElementById('attachment');
+        const fileListDisplay = document.getElementById('file-list');
+        let allFiles = [];
+
+        fileInput.addEventListener('change', function() {
+            for (let i = 0; i < this.files.length; i++) {
+                allFiles.push(this.files[i]);
+            }
+
+            renderFileList();
+            this.value = "";
+        });
+
+        function renderFileList() {
+            fileListDisplay.innerHTML = '';
+
+            if (allFiles.length === 0) {
+                fileListDisplay.innerHTML = '<li>Brak plików</li>';
+                return;
+            }
+
+            allFiles.forEach((file, index) => {
+                const li = document.createElement('li');
+                li.textContent = file.name + " ";
+
+                const removeBtn = document.createElement('button');
+                removeBtn.textContent = "usuń";
+                removeBtn.type = "button";
+                removeBtn.onclick = function() {
+                    allFiles.splice(index, 1);
+                    renderFileList();
+                };
+
+                li.appendChild(removeBtn);
+                fileListDisplay.appendChild(li);
+            });
+        }
+        document.getElementById('mainForm').onsubmit = function(e) {
+            e.preventDefault();
+
+            let formData = new FormData();
+            formData.append('receiver', document.getElementById('receiver').value);
+            formData.append('message', document.getElementById('message').value);
+            allFiles.forEach((file) => {
+                formData.append('attachments', file);
+            });
+
+            fetch('/message', {
+                method: 'POST',
+                body: formData,
+                credentials: 'include'
+            })
+            .then(async response => {
+                if (response.ok) {
+                    // SUKCES:
+                    // response.url zawiera adres, na który przekierował Flask (czyli .../menu)
+                    // Ta komenda sprawia, że przeglądarka faktycznie tam przechodzi.
+                    window.location.href = response.url;
+                } else {
+                    // BŁĄD:
+                    // Wczytujemy treść błędu i wyświetlamy alert
+                    const text = await response.text();
+                    alert("Problem: " + text);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert("Błąd połączenia z serwerem.");
+            });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert("Błąd połączenia z serwerem.");
+            });
+        };
+    </script>
+{% endblock %}
