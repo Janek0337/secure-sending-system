@@ -25,7 +25,7 @@ def register():
             return jsonify("Input error"), HTTPStatus.BAD_REQUEST
         register_dto = DTOs.RegisterDTO(**data)
 
-        if user_service.user_exists(register_dto.login):
+        if user_service.user_exists(register_dto.username):
             return jsonify("User already exists"), HTTPStatus.CONFLICT
 
         if user_service.register_user(register_dto):
@@ -51,7 +51,7 @@ def login():
     if not verification_result:
         return jsonify("Invalid login credentials"), HTTPStatus.FORBIDDEN
     
-    jwt_token = {'access-token': jwt_manager.create_token(verification_result, login_dto.login)}
+    jwt_token = {'access-token': jwt_manager.create_token(verification_result, login_dto.username)}
 
     return jsonify(jwt_token), HTTPStatus.OK
 
@@ -88,11 +88,21 @@ def get_key():
     except ValidationError:
         return jsonify("Input error"), HTTPStatus.BAD_REQUEST
 
-    key = message_service.get_key_by_login(key_request_dto.login)
+    key = message_service.get_key_by_username(key_request_dto.username)
     
     if key is None:
-        return jsonify(DTOs.KeyTransferDTO(login=key_request_dto.login, key=None).model_dump()), HTTPStatus.NOT_FOUND
-    return jsonify(DTOs.KeyTransferDTO(login=key_request_dto.login, key=key).model_dump()), HTTPStatus.OK
+        return jsonify(DTOs.KeyTransferDTO(username=key_request_dto.username, key=None).model_dump()), HTTPStatus.NOT_FOUND
+    return jsonify(DTOs.KeyTransferDTO(username=key_request_dto.username, key=key).model_dump()), HTTPStatus.OK
+
+@app.route("/get-messages", methods=["POST"])
+def get_messages():
+    token = request.cookies.get('access-token')
+    token_data = jwt_manager.validate_jwt_token(token)
+    if token_data is None:
+        return jsonify("Invalid token"), HTTPStatus.FORBIDDEN
+
+    messages_dto = message_service.get_messages_list(token_data['uid'])
+    return jsonify([m.model_dump() for m in messages_dto]), HTTPStatus.OK
 
 if __name__ == '__main__':
     DbController.prepare_database()

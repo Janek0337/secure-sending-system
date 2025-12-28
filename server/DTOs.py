@@ -1,13 +1,13 @@
 from pydantic import BaseModel
 
 class RegisterDTO(BaseModel):
-    login: str
+    username: str
     password: str
     email: str
     public_key: str
 
 class LoginDTO(BaseModel):
-    login: str
+    username: str
     password: str
 
 class MessageDTO(BaseModel):
@@ -16,5 +16,11 @@ class MessageDTO(BaseModel):
     attachments: list[tuple[tuple[str, str], str]] # [ ((filename, file_content), key) ] in base64
 
 class KeyTransferDTO(BaseModel):
-    login: str
+    username: str
     key: str | None
+
+class MessageListElementDTO(BaseModel):
+    username: str
+    is_read: bool
+    message_id: int
+    date_sent: str

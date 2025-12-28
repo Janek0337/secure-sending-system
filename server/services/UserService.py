@@ -7,11 +7,11 @@ class UserService():
     def __init__(self):
         self.phash = PasswordHasher()
 
-    def user_exists(self, login: str) -> bool:
+    def user_exists(self, username: str) -> bool:
         db = get_db()
         try:
             cursor = db.cursor()
-            cursor.execute("SELECT user_id FROM app_users WHERE login = ?;", (login,))
+            cursor.execute("SELECT user_id FROM app_users WHERE username = ?;", (username,))
             return cursor.fetchone() is not None
         except Exception as e:
             print("Database error:", e)
@@ -28,8 +28,8 @@ class UserService():
         try:
             cursor = db.cursor()
             cursor.execute(
-                "INSERT INTO app_users (login, password, email, public_key) VALUES (?, ?, ?, ?)",
-                (reg_dto.login, reg_dto.password, reg_dto.email, reg_dto.public_key)
+                "INSERT INTO app_users (username, password, email, public_key) VALUES (?, ?, ?, ?)",
+                (reg_dto.username, reg_dto.password, reg_dto.email, reg_dto.public_key)
             )
             db.commit()
             return True
@@ -57,7 +57,7 @@ class UserService():
         db = get_db()
         try:
             cursor = db.cursor()
-            cursor.execute("SELECT user_id, password FROM app_users WHERE login = ?;", (login_dto.login,))
+            cursor.execute("SELECT user_id, password FROM app_users WHERE username = ?;", (login_dto.username,))
             user = cursor.fetchone()
             
             if user is None:

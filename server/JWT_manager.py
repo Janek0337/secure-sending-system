@@ -26,14 +26,14 @@ class JWT_manager():
         padding = '=' * (4 - len(data) % 4)
         return base64.urlsafe_b64decode(data + padding)
 
-    def make_payload64(self, uid, login):
+    def make_payload64(self, uid, username):
         time_now = int(time.time())
         time_valid_seconds = 3600
         payload = {
             "sub": uid,
             "iat": time_now,
             "exp": time_now + time_valid_seconds,
-            "username": login,
+            "username": username,
             "iss": "sss.serv"
         }
         return self.safe_base64_encode(payload)
@@ -46,8 +46,8 @@ class JWT_manager():
 
         return signature64
     
-    def create_token(self, uid, login):
-        payload64 = self.make_payload64(uid, login)
+    def create_token(self, uid, username):
+        payload64 = self.make_payload64(uid, username)
         signature = self.make_signature(payload64).decode("utf-8") # now it's a text to make it sendable in JSON
         return self.header64.decode("utf-8") + '.' + payload64.decode("utf-8") + '.' + signature
 

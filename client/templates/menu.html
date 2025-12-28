@@ -3,7 +3,38 @@
 {% block title %}Send message{% endblock %}
 
 {% block content %}
-
-<h1>Tu bedzie menu</h1>
-
+<button onclick="window.location.href='/message'">Create new message</button>
+<h1>Your inbox:</h1>
+<table>
+    <thead>
+        <tr>
+            <th>Sender</th>
+            <th>Date sent</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for msg in messages %}
+        <tr class="{{ 'read' if msg.is_read else 'unread' }}">
+            <td>{{ msg.username }}</td>
+            <td>{{ msg.date_sent }}</td>
+            <td>
+                {%if msg.is_read %}
+                    Read
+                {% else %}
+                    <span style="color:red">New</span>
+                {% endif %}
+            </td>
+            <td>
+                <button class="btn-open" onclick="window.location.href='/message/{{ msg.message_id }}'">Open</button>
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="4" style="text-align:center;">No messages</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
 {% endblock %}

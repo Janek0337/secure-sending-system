@@ -27,19 +27,19 @@ class KeyManager():
     def create_key(self):
         self.key = RSA.generate(2048)
 
-    def save_key(self, name, password):
+    def save_key(self, username, password):
         if self.key is None:
-            self.load_key(name)
+            self.load_key(username)
             if self.key is None:
                 return False
         private_pem = self.get_priv_key_text(password)
-        with open(f"keys/private_key_{name}.pem", "wb") as f:
+        with open(f"keys/private_key_{username}.pem", "wb") as f:
             f.write(private_pem.encode("utf-8"))
 
         return True
 
-    def load_key(self, name):
-        with open(f"keys/private_key_{name}.pem", "rb") as f:
+    def load_key(self, username):
+        with open(f"keys/private_key_{username}.pem", "rb") as f:
             key_data = f.read()
         self.key = RSA.import_key(key_data)
 

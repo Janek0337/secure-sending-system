@@ -11,7 +11,7 @@ def prepare_database():
             setup_command = """
             CREATE TABLE IF NOT EXISTS app_users(
                 user_id INTEGER PRIMARY KEY,
-                login TEXT NOT NULL UNIQUE,
+                username TEXT NOT NULL UNIQUE,
                 password TEXT NOT NULL,
                 email TEXT NOT NULL,
                 public_key TEXT

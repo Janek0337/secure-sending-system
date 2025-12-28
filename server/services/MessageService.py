@@ -5,14 +5,17 @@ import DTOs
 import time
 from http import HTTPStatus
 
+from pydantic import ValidationError
+
+
 class MessageService():
-    def get_key_by_login(self, login: str):
+    def get_key_by_username(self, username: str):
         db = get_db()
         try:
             cursor = db.cursor()
             cursor.execute(
-                "SELECT public_key FROM app_users WHERE login = ?",
-                (login,)
+                "SELECT public_key FROM app_users WHERE username = ?",
+                (username,)
             )
             result = cursor.fetchone()
             if result is not None:
@@ -27,7 +30,7 @@ class MessageService():
         try:
             cursor = db.cursor()
             cursor.execute(
-                "SELECT user_id FROM app_users where login = ?", (receiver_name,)
+                "SELECT user_id FROM app_users where username = ?", (receiver_name,)
             )
             result = cursor.fetchone()
             if result is None:
@@ -49,5 +52,27 @@ class MessageService():
         except Exception as e:
             print("Database error:", e)
             return HTTPStatus.INTERNAL_SERVER_ERROR
+
+    def get_messages_list(self, receiver_uid: int):
+        db = get_db()
+        try:
+            cursor = db.cursor()
+            cursor.execute(
+                "SELECT datetime(m.date_sent, 'unixepoch', 'localtime') AS date_sent, a.username, m.is_read, m.message_id "
+                "FROM messages m "
+                "JOIN app_users a on m.sender_id = a.user_id "
+                "WHERE m.receiver_id = ? "
+                "ORDER BY m.date_sent DESC",
+                (receiver_uid,)
+            )
+
+            messages = cursor.fetchall()
+            try:
+                return [DTOs.MessageListElementDTO(**m) for m in messages]
+            except ValidationError:
+                return []
+        except Exception as e:
+            print("Database error:", e)
+            return []
         
 message_service = MessageService()

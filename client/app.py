@@ -28,10 +28,10 @@ def login():
     if request.method == "GET":
         return render_template('login.html')
 
-    login = request.form.get('login')
+    username = request.form.get('username')
     password = request.form.get('password')
     payload = {
-        "login": login,
+        "username": username,
         "password": password
     }
     try:
@@ -60,25 +60,25 @@ def register():
     if request.method == "GET":
         return render_template('register.html')
     
-    login = request.form['login']
+    username = request.form['username']
     password = request.form['password']
     email = request.form['email']
 
     key_manager.create_key()
     try:
-        register_dto = DTOs.RegisterDTO(login=login, password=password, email=email, public_key=key_manager.get_pub_key_text())
+        register_dto = DTOs.RegisterDTO(username=username, password=password, email=email, public_key=key_manager.get_pub_key_text())
         res = requests.post(url=server_address + "/register", json=register_dto.model_dump())
         if res.status_code == HTTPStatus.CREATED:
             flash("Successful registration! You can now log in.", "success")
             return redirect(url_for('login'))
         elif res.status_code == HTTPStatus.CONFLICT:
-            flash("User with such login already exists", "error")
+            flash("User with such username already exists", "error")
             return redirect(url_for('login'))
         else:
             flash("Error has happened", "error")
             return render_template('register.html')
     finally:
-        key_manager.save_key(login, password)
+        key_manager.save_key(username, password)
 
 
 @app.route('/message', methods=["GET","POST"])
@@ -89,7 +89,7 @@ def message():
     receiver = request.form['receiver']
     content = request.form['message']
 
-    res = requests.get(url = server_address + "/get-key", json=DTOs.KeyTransferDTO(login=receiver, key=None).model_dump())
+    res = requests.get(url = server_address + "/get-key", json=DTOs.KeyTransferDTO(username=receiver, key=None).model_dump())
     if res.status_code == HTTPStatus.OK:
         receiver_key = res.json()['key']
     elif res.status_code == HTTPStatus.NOT_FOUND:
@@ -132,7 +132,22 @@ def message():
     
 @app.route('/menu', methods=["GET"])
 def menu():
-    return render_template("menu.html")
+    message_list = []
+    token = request.cookies.get('access-token')
+    cookies = {'access-token': token}
+    res = requests.post(url=server_address + "/get-messages", cookies=cookies)
+    if res.status_code == HTTPStatus.OK:
+        try:
+            message_list = [DTOs.MessageListElementDTO(**m) for m in res.json()]
+            print(f"Lista wiadomosci: {message_list}")
+        except Exception as e:
+            flash("Error has happened!", "error")
+    elif res.status_code == HTTPStatus.FORBIDDEN:
+        flash("Couldn't access your messages", "error")
+    else:
+        flash("Couldn't get your messages", "error")
+
+    return render_template("menu.html", messages=message_list)
 
 if __name__ == "__main__":
     app.run(debug=True, port=3045)
