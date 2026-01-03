@@ -6,7 +6,7 @@ import os
 import json
 import hmac
 
-class JWT_manager():
+class JWT_manager:
     def __init__(self):
         self.header64 = self.safe_base64_encode({
             "alg": "HS256",

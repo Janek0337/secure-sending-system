@@ -1,7 +1,7 @@
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
 
-class KeyManager():
+class KeyManager:
     def __init__(self):
         self.key: RSA.RsaKey = None
 
@@ -29,7 +29,7 @@ class KeyManager():
 
     def save_key(self, username, password):
         if self.key is None:
-            self.load_key(username)
+            self.load_key(username, password)
             if self.key is None:
                 return False
         private_pem = self.get_priv_key_text(password)
@@ -38,12 +38,18 @@ class KeyManager():
 
         return True
 
-    def load_key(self, username):
-        with open(f"keys/private_key_{username}.pem", "rb") as f:
-            key_data = f.read()
-        self.key = RSA.import_key(key_data)
-
-        return True
+    def load_key(self, username, password):
+        try:
+            with open(f"keys/private_key_{username}.pem", "rb") as f:
+                key_data = f.read()
+            self.key = RSA.import_key(key_data, passphrase=password)
+            return True
+        except (ValueError, IndexError, TypeError):
+            print("Incorrect password or invalid file")
+            return False
+        except FileNotFoundError:
+            print("Key file not found")
+            return False
 
     def encrypt_data(self, data: bytes, pub_key: str) -> bytes:
         public_key = RSA.import_key(pub_key)
@@ -52,9 +58,8 @@ class KeyManager():
 
         return encrypted
     
-    def decrypt_data(self, encrypted_data: bytes, priv_key: str) -> bytes:
-        private_key = RSA.import_key(priv_key)
-        cipher = PKCS1_OAEP.new(private_key)
+    def decrypt_data(self, encrypted_data: bytes) -> bytes:
+        cipher = PKCS1_OAEP.new(self.key)
         decrypted = cipher.decrypt(encrypted_data)
 
         return decrypted

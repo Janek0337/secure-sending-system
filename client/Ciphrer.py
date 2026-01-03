@@ -2,7 +2,7 @@ from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 import secrets
 
-class AES_cipherer():
+class AES_cipherer:
     def __init__(self):
         self.block_size = 16
 
@@ -23,11 +23,12 @@ class AES_cipherer():
         return unpadded_data
         
 
-    def encrypt_data(self, data: bytes):
+    def encrypt_data(self, data: bytes, key=None):
         """
         returns encrypted data with block_size iv attached at the beginning
         """
-        key = secrets.token_bytes(32) # 32B = 256 bit
+        if key is None:
+            key = secrets.token_bytes(32) # 32B = 256 bit
         iv = get_random_bytes(self.block_size)
 
         cipher = AES.new(key=key, mode=AES.MODE_CBC, iv=iv)
@@ -36,7 +37,7 @@ class AES_cipherer():
         full_data = iv + encrypted_data
         return (full_data, key)
     
-    def decrypt_data(self, data: bytes, key: bytes, iv: bytes):
+    def decrypt_data(self, data: bytes, key: bytes):
         iv = data[:self.block_size]
         cipher = AES.new(key=key, mode=AES.MODE_CBC, iv=iv)
 

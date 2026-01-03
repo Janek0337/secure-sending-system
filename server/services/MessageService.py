@@ -8,7 +8,7 @@ from http import HTTPStatus
 from pydantic import ValidationError
 
 
-class MessageService():
+class MessageService:
     def get_key_by_username(self, username: str):
         db = get_db()
         try:
@@ -74,5 +74,47 @@ class MessageService():
         except Exception as e:
             print("Database error:", e)
             return []
+
+    def get_the_message(self, so_called_receiver_id: int, message_id: int):
+        db = get_db()
+        try:
+            cursor = db.cursor()
+            cursor.execute(
+                "SELECT receiver_id FROM messages m WHERE m.message_id = ?", (message_id,)
+            )
+            intended_result = cursor.fetchone()
+            if intended_result['receiver_id'] != so_called_receiver_id:
+                return False
+
+            cursor.execute(
+                "SELECT m.date_sent, m.is_read, "
+                "m.message_id, m.key, m.content, a.username "
+                "FROM messages m "
+                "JOIN app_users a on m.sender_id = a.user_id "
+                "WHERE m.message_id = ? ",
+                (message_id,)
+            )
+
+            message_results = cursor.fetchone()
+
+            cursor.execute(
+                "SELECT name, content, key "
+                "FROM attachments "
+                "WHERE message_id = ?",
+                (message_id,)
+            )
+
+            attachment_results = cursor.fetchall()
+
+            dto = DTOs.GetMessageDTO(
+                sender = message_results['username'],
+                content = (message_results['content'], message_results['key']),
+                attachments = [((a['name'], a['content']), a['key']) for a in attachment_results],
+                date_sent = message_results['date_sent']
+            )
+            return dto
+        except Exception as e:
+            print("Database error here:", e)
+            return False
         
 message_service = MessageService()

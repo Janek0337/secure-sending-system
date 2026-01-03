@@ -36,81 +36,71 @@
     </form>
 
     <script>
-        const fileInput = document.getElementById('attachment');
-        const fileListDisplay = document.getElementById('file-list');
-        let allFiles = [];
+    const fileInput = document.getElementById('attachment');
+    const fileListDisplay = document.getElementById('file-list');
+    let allFiles = [];
 
-        fileInput.addEventListener('change', function() {
-            for (let i = 0; i < this.files.length; i++) {
-                allFiles.push(this.files[i]);
-            }
+    fileInput.addEventListener('change', function() {
+        for (let i = 0; i < this.files.length; i++) {
+            allFiles.push(this.files[i]);
+        }
+        renderFileList();
+        this.value = "";
+    });
 
-            renderFileList();
-            this.value = "";
+    function renderFileList() {
+        fileListDisplay.innerHTML = '';
+        if (allFiles.length === 0) {
+            fileListDisplay.innerHTML = '<li>No files</li>';
+            return;
+        }
+
+        allFiles.forEach((file, index) => {
+            const li = document.createElement('li');
+            li.textContent = file.name + " (" + (file.size / (1024*1024)).toFixed(2) + " MB) ";
+
+            const removeBtn = document.createElement('button');
+            removeBtn.textContent = "Delete";
+            removeBtn.type = "button";
+            removeBtn.style.marginLeft = "10px";
+            removeBtn.onclick = function() {
+                allFiles.splice(index, 1);
+                renderFileList();
+            };
+
+            li.appendChild(removeBtn);
+            fileListDisplay.appendChild(li);
+        });
+    }
+
+    document.getElementById('mainForm').onsubmit = function(e) {
+        e.preventDefault();
+
+        let formData = new FormData();
+        formData.append('receiver', document.getElementById('receiver').value);
+        formData.append('message', document.getElementById('message').value);
+
+        allFiles.forEach((file) => {
+            formData.append('attachments', file);
         });
 
-        function renderFileList() {
-            fileListDisplay.innerHTML = '';
-
-            if (allFiles.length === 0) {
-                fileListDisplay.innerHTML = '<li>Brak plików</li>';
-                return;
+        fetch('/message', {
+            method: 'POST',
+            body: formData,
+            credentials: 'include'
+        })
+        .then(async response => {
+            if (response.ok) {
+                window.location.href = response.url;
+            } else {
+                const text = await response.text();
+                alert("Problem: " + text);
             }
-
-            allFiles.forEach((file, index) => {
-                const li = document.createElement('li');
-                li.textContent = file.name + " ";
-
-                const removeBtn = document.createElement('button');
-                removeBtn.textContent = "usuń";
-                removeBtn.type = "button";
-                removeBtn.onclick = function() {
-                    allFiles.splice(index, 1);
-                    renderFileList();
-                };
-
-                li.appendChild(removeBtn);
-                fileListDisplay.appendChild(li);
-            });
-        }
-        document.getElementById('mainForm').onsubmit = function(e) {
-            e.preventDefault();
-
-            let formData = new FormData();
-            formData.append('receiver', document.getElementById('receiver').value);
-            formData.append('message', document.getElementById('message').value);
-            allFiles.forEach((file) => {
-                formData.append('attachments', file);
-            });
-
-            fetch('/message', {
-                method: 'POST',
-                body: formData,
-                credentials: 'include'
-            })
-            .then(async response => {
-                if (response.ok) {
-                    // SUKCES:
-                    // response.url zawiera adres, na który przekierował Flask (czyli .../menu)
-                    // Ta komenda sprawia, że przeglądarka faktycznie tam przechodzi.
-                    window.location.href = response.url;
-                } else {
-                    // BŁĄD:
-                    // Wczytujemy treść błędu i wyświetlamy alert
-                    const text = await response.text();
-                    alert("Problem: " + text);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert("Błąd połączenia z serwerem.");
-            });
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert("Błąd połączenia z serwerem.");
-            });
-        };
-    </script>
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert("Server error");
+        });
+    };
+</script>
 {% endblock %}

@@ -1,6 +1,8 @@
-from flask import Flask, jsonify, redirect, request, make_response
-import DbController as DbController
+import sys
+sys.path.insert(0, "../shared")
 import DTOs
+from flask import Flask, jsonify, request
+import DbController as DbController
 from pydantic import ValidationError
 from http import HTTPStatus
 from services.UserService import user_service
@@ -103,6 +105,18 @@ def get_messages():
 
     messages_dto = message_service.get_messages_list(token_data['uid'])
     return jsonify([m.model_dump() for m in messages_dto]), HTTPStatus.OK
+
+@app.route("/get-the-message/<int:message_id>", methods=["GET"])
+def get_message(message_id):
+    token = request.cookies.get('access-token')
+    token_data = jwt_manager.validate_jwt_token(token)
+    if token_data is None:
+        return jsonify("Invalid token"), HTTPStatus.FORBIDDEN
+
+    dto = message_service.get_the_message(token_data['uid'], message_id)
+    if dto == False:
+        return jsonify("Not allowed"), HTTPStatus.FORBIDDEN
+    return dto.model_dump(), HTTPStatus.OK
 
 if __name__ == '__main__':
     DbController.prepare_database()

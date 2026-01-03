@@ -3,7 +3,7 @@ from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from DbController import get_db
 
-class UserService():
+class UserService:
     def __init__(self):
         self.phash = PasswordHasher()
 

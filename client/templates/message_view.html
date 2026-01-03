@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}View message{% endblock %}
+
+{% block content %}
+<h2>From: {{ data.sender }}</h2>
+<h2>At: {{ data.date_sent }}</h2>
+<h4>Message:</h4>
+<p>{{ data.content }}</p>
+
+<hr>
+<h2>Attachments:</h2>
+{% if data.attachments %}
+<ul class="list-group">
+    {% for filename, filecontent in data.attachments %}
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+        {{ filename }}
+        <button class="btn btn-primary btn-sm"
+                onclick="downloadFile('{{ filename }}', '{{ filecontent }}')">
+            Download
+        </button>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p>No attachments</p>
+{% endif %}
+<script>
+function downloadFile(filename, base64Content) {
+    const byteCharacters = atob(base64Content);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+
+    const blob = new Blob([byteArray], { type: 'application/octet-stream' });
+
+    const link = document.createElement('a');
+    link.href = window.URL.createObjectURL(blob);
+    link.download = filename;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+</script>
+{% endblock %}
