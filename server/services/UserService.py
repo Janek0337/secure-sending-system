@@ -1,7 +1,8 @@
-import DTOs
+from shared import DTOs
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
-from DbController import get_db
+from server.DbController import get_db
+from shared.utils import is_password_secure
 
 class UserService:
     def __init__(self):
@@ -18,7 +19,7 @@ class UserService:
 
 
     def register_user(self, reg_dto: DTOs.RegisterDTO):
-        if not self.is_password_secure(reg_dto.password):
+        if not is_password_secure(reg_dto.password):
             return False
 
         reg_dto.password = self.phash.hash(reg_dto.password)
@@ -36,22 +37,6 @@ class UserService:
         except Exception as e:
             print("Database error:", e)
             return False
-
-    def is_password_secure(self, password: str) -> bool:
-        if len(password) < 16:
-            return False
-
-        hasLower = False
-        hasUpper = False
-        hasDigit = False
-        hasSpecialCharacter = False
-        for c in password:
-            if c.islower(): hasLower = True
-            if c.isupper(): hasUpper = True
-            if c.isdigit(): hasDigit = True
-            if not c.isalnum(): hasSpecialCharacter = True
-        
-        return hasLower and hasUpper and hasDigit and hasSpecialCharacter
     
     def verify_login(self, login_dto: DTOs.LoginDTO) -> bool | int:
         db = get_db()

@@ -32,6 +32,7 @@ class MessageListElementDTO(BaseModel):
     date_sent: str
 
 class ViewMessage(BaseModel):
+    message_id: int
     sender: str
     content: str
     attachments: list[tuple[str, str]] # [ (filename, file_content) ] file_content in base64

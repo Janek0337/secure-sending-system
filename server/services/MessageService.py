@@ -1,12 +1,8 @@
-from http import HTTPStatus
-
-from DbController import get_db
-import DTOs
+from server.DbController import get_db
+from shared import DTOs
 import time
 from http import HTTPStatus
-
 from pydantic import ValidationError
-
 
 class MessageService:
     def get_key_by_username(self, username: str):
@@ -75,17 +71,13 @@ class MessageService:
             print("Database error:", e)
             return []
 
-    def get_the_message(self, so_called_receiver_id: int, message_id: int):
+    def get_the_message(self, receiver_username: str, message_id: int):
+        if not self.is_user_receiver_of_message(receiver_username, message_id):
+            return False
+
         db = get_db()
         try:
             cursor = db.cursor()
-            cursor.execute(
-                "SELECT receiver_id FROM messages m WHERE m.message_id = ?", (message_id,)
-            )
-            intended_result = cursor.fetchone()
-            if intended_result['receiver_id'] != so_called_receiver_id:
-                return False
-
             cursor.execute(
                 "SELECT m.date_sent, m.is_read, "
                 "m.message_id, m.key, m.content, a.username "
@@ -115,6 +107,37 @@ class MessageService:
             return dto
         except Exception as e:
             print("Database error here:", e)
+            return False
+
+    def is_user_receiver_of_message(self, username: str, message_id: int) -> bool:
+        db = get_db()
+        try:
+            cursor = db.cursor()
+            cursor.execute(
+                "SELECT u.username "
+                "FROM messages m "
+                "JOIN app_users u ON m.receiver_id = u.user_id "
+                "WHERE m.message_id = ?", (message_id,)
+            )
+            result = cursor.fetchone()
+            return result is not None and result['username'] == username
+        except Exception as e:
+            print("Database error:", e)
+            return False
+
+    def mark_as_read(self, message_id: int):
+        db = get_db()
+        try:
+            cursor = db.cursor()
+            cursor.execute(
+                "UPDATE messages "
+                "SET is_read = 1 "
+                "WHERE message_id = ?", (message_id,)
+            )
+            db.commit()
+            return True
+        except Exception as e:
+            print("Database error:", e)
             return False
         
 message_service = MessageService()

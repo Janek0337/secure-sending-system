@@ -1,2 +1,5 @@
 #!/usr/bin/env bash
-uv run python3 ./app.py
+
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+export PYTHONPATH="$PYTHONPATH:$ROOT_DIR"
+uv run python3 "$(dirname "$0")/app.py"

@@ -5,7 +5,13 @@
 {% block content %}
 <h2>From: {{ data.sender }}</h2>
 <h2>At: {{ data.date_sent }}</h2>
-<h4>Message:</h4>
+
+<form action="/mark-read/{{ data.message_id }}" method="POST">
+    <button type="submit">Mark as read</button>
+</form>
+
+<hr>
+<h2>Message:</h2>
 <p>{{ data.content }}</p>
 
 <hr>

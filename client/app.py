@@ -1,7 +1,4 @@
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from flask import Flask, render_template, redirect, request, flash, url_for, make_response
+from flask import Flask, render_template, redirect, request, flash, url_for, make_response, jsonify
 import requests
 from shared import DTOs
 import KeyManager
@@ -10,6 +7,7 @@ from http import HTTPStatus
 import os
 import base64
 from datetime import datetime
+from shared.utils import is_password_secure
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -69,7 +67,16 @@ def register():
     
     username = request.form['username']
     password = request.form['password']
+    confirmed_password = request.form['confirmPassword']
     email = request.form['email']
+
+    if password != confirmed_password:
+        flash("Password and confirmed password are different. Did not register.", "error")
+        return redirect(request.referrer)
+
+    if not is_password_secure(password):
+        flash("Password is not secure enough. Did not register.", "error")
+        return redirect(request.referrer)
 
     key_manager.create_key()
     try:
@@ -79,11 +86,11 @@ def register():
             flash("Successful registration! You can now log in.", "success")
             return redirect(url_for('login'))
         elif res.status_code == HTTPStatus.CONFLICT:
-            flash("User with such username already exists", "error")
-            return redirect(url_for('login'))
+            flash("User with such username already exists.", "error")
+            return redirect(request.referrer)
         else:
-            flash("Error has happened", "error")
-            return render_template('register.html')
+            flash("Error has happened.", "error")
+            return redirect(request.referrer)
     finally:
         key_manager.save_key(username, password)
 
@@ -124,12 +131,9 @@ def message():
 
     token = request.cookies.get('access-token')
     if not token:
-        flash("Authentication token is missing!", "error")
-        return redirect(url_for('login'))
+        return jsonify("Please log in again."), HTTPStatus.FORBIDDEN
 
     cookies = {'access-token': token}
-
-    print(f"Sending: {to_send.model_dump()}")
     res = requests.post(url=server_address + "/message", json=to_send.model_dump(), cookies=cookies)
     if res.status_code == HTTPStatus.CREATED:
         flash(f"Sent message to {receiver}", "success")
@@ -146,13 +150,10 @@ def menu():
     if res.status_code == HTTPStatus.OK:
         try:
             message_list = [DTOs.MessageListElementDTO(**m) for m in res.json()]
-            print(f"Lista wiadomosci: {message_list}")
         except Exception as e:
             flash("Error has happened!", "error")
-    elif res.status_code == HTTPStatus.FORBIDDEN:
-        flash("Couldn't access your messages", "error")
     else:
-        flash("Couldn't get your messages", "error")
+        flash("Couldn't access your messages", "error")
 
     return render_template("menu.html", messages=message_list)
 
@@ -161,11 +162,11 @@ def get_the_message(message_id):
     token = request.cookies.get('access-token')
     cookies = {'access-token': token}
     if key_manager.key is None:
-        flash("Couldn't acces your key. Please log in again", "error")
+        flash("Please log in again.", "error")
         return redirect(url_for('login'))
     res = requests.get(url=f"{server_address}/get-the-message/{message_id}", cookies=cookies)
     if res.status_code == HTTPStatus.FORBIDDEN:
-        flash("Couldn't access your message", "error")
+        flash("Couldn't access your message.", "error")
         return redirect(url_for('menu'))
 
     dto = DTOs.GetMessageDTO(**res.json())
@@ -192,12 +193,28 @@ def get_the_message(message_id):
     date_str = datetime.strftime(dt_obj, "%d/%m/%Y %H:%M:%S")
 
     message_data = DTOs.ViewMessage(
+        message_id = message_id,
         sender = dto.sender,
         content = deciphered_content,
         attachments = good_attachments,
         date_sent = date_str
     )
     return render_template('message_view.html', data=message_data)
+
+@app.route('/mark-read/<int:message_id>', methods=["POST"])
+def mark_read(message_id):
+    token = request.cookies.get('access-token')
+    cookies = {'access-token': token}
+    res = requests.post(url=f"{server_address}/mark-read/{message_id}", cookies=cookies)
+    if res.status_code == HTTPStatus.FORBIDDEN:
+        flash("Couldn't apply changes. Please log in again.", "error")
+        return redirect(url_for('login'))
+    elif res.status_code == HTTPStatus.OK:
+        flash("Message marked as read", "success")
+        return redirect(url_for('menu'))
+    else:
+        flash("Error. Did not apply changes.")
+        return redirect(request.referrer)
 
 if __name__ == "__main__":
     app.run(debug=True, port=3045)
