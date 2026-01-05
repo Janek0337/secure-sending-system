@@ -9,7 +9,9 @@
 <form action="/mark-read/{{ data.message_id }}" method="POST">
     <button type="submit">Mark as read</button>
 </form>
-
+<form action="/delete-message/{{ data.message_id }}" method="POST">
+    <button type="submit">Delete message</button>
+</form>
 <hr>
 <h2>Message:</h2>
 <p>{{ data.content }}</p>

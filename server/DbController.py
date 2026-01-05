@@ -33,7 +33,7 @@ def prepare_database():
                 attachment_id INTEGER PRIMARY KEY,
                 message_id INTEGER NOT NULL,
                 name TEXT NOT NULL,
-                content blob NOT NULL,
+                content TEXT NOT NULL,
                 key TEXT NOT NULL,
                 FOREIGN KEY (message_id) REFERENCES messages(message_id)
             );

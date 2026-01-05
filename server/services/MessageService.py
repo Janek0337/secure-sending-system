@@ -125,7 +125,7 @@ class MessageService:
             print("Database error:", e)
             return False
 
-    def mark_as_read(self, message_id: int):
+    def mark_read(self, message_id: int):
         db = get_db()
         try:
             cursor = db.cursor()
@@ -133,6 +133,22 @@ class MessageService:
                 "UPDATE messages "
                 "SET is_read = 1 "
                 "WHERE message_id = ?", (message_id,)
+            )
+            db.commit()
+            return True
+        except Exception as e:
+            print("Database error:", e)
+            return False
+
+    def delete_message(self, message_id):
+        db = get_db()
+        try:
+            cursor = db.cursor()
+            cursor.execute(
+                "DELETE FROM messages WHERE message_id = ?", (message_id,)
+            )
+            cursor.execute(
+                "DELETE FROM attachments WHERE message_id = ?", (message_id,)
             )
             db.commit()
             return True

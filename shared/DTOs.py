@@ -31,6 +31,10 @@ class MessageListElementDTO(BaseModel):
     message_id: int
     date_sent: str
 
+class MessageListListDTO(BaseModel):
+    list_elements: list[MessageListElementDTO]
+    owner: str
+
 class ViewMessage(BaseModel):
     message_id: int
     sender: str

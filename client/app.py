@@ -144,18 +144,21 @@ def message():
 @app.route('/menu', methods=["GET"])
 def menu():
     message_list = []
+    owner = "Unknown"
     token = request.cookies.get('access-token')
     cookies = {'access-token': token}
     res = requests.post(url=server_address + "/get-messages", cookies=cookies)
     if res.status_code == HTTPStatus.OK:
         try:
-            message_list = [DTOs.MessageListElementDTO(**m) for m in res.json()]
+            response = res.json()
+            message_list = [DTOs.MessageListElementDTO(**m) for m in response.get('list_elements',[])]
+            owner = response.get('owner', 'Unknown')
         except Exception as e:
             flash("Error has happened!", "error")
     else:
         flash("Couldn't access your messages", "error")
 
-    return render_template("menu.html", messages=message_list)
+    return render_template("menu.html", messages=message_list, owner=owner)
 
 @app.route('/get-the-message/<int:message_id>', methods=["GET"])
 def get_the_message(message_id):
@@ -214,6 +217,21 @@ def mark_read(message_id):
         return redirect(url_for('menu'))
     else:
         flash("Error. Did not apply changes.")
+        return redirect(request.referrer)
+
+@app.route("/delete-message/<int:message_id>", methods=["POST"])
+def delete_message(message_id):
+    token = request.cookies.get('access-token')
+    cookies = {'access-token': token}
+    res = requests.delete(url=f"{server_address}/delete-message/{message_id}", cookies=cookies)
+    if res.status_code == HTTPStatus.FORBIDDEN:
+        flash("Couldn't apply changes. Please log in again.", "error")
+        return redirect(url_for('login'))
+    elif res.status_code == HTTPStatus.NO_CONTENT:
+        flash("Message deleted.", "success")
+        return redirect(url_for('menu'))
+    else:
+        flash(f"Error. Did not delete. Status code: {res.status_code}")
         return redirect(request.referrer)
 
 if __name__ == "__main__":

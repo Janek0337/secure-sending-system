@@ -102,7 +102,11 @@ def get_messages():
         return jsonify("Invalid token"), HTTPStatus.FORBIDDEN
 
     messages_dto = message_service.get_messages_list(token_data['uid'])
-    return jsonify([m.model_dump() for m in messages_dto]), HTTPStatus.OK
+    messag_list = DTOs.MessageListListDTO(
+        list_elements=[m.model_dump() for m in messages_dto],
+        owner=token_data['username']
+    )
+    return jsonify(messag_list.model_dump()), HTTPStatus.OK
 
 @app.route("/get-the-message/<int:message_id>", methods=["GET"])
 def get_message(message_id):
@@ -125,9 +129,23 @@ def mark_read(message_id):
     if not message_service.is_user_receiver_of_message(token_data['username'], message_id):
         return jsonify("Not allowed"), HTTPStatus.FORBIDDEN
 
-    if message_service.mark_as_read(message_id):
+    if message_service.mark_read(message_id):
         return jsonify("Success"), HTTPStatus.OK
     return jsonify("Unsuccessful update"), HTTPStatus.INTERNAL_SERVER_ERROR
+
+@app.route("/delete-message/<int:message_id>", methods=["DELETE"])
+def delete_message(message_id):
+    token = request.cookies.get('access-token')
+    token_data = jwt_manager.validate_jwt_token(token)
+    if token_data is None:
+        return jsonify("Invalid token"), HTTPStatus.FORBIDDEN
+    if not message_service.is_user_receiver_of_message(token_data['username'], message_id):
+        return jsonify("Not allowed"), HTTPStatus.FORBIDDEN
+
+    if not message_service.delete_message(message_id):
+        return jsonify("Error"), HTTPStatus.INTERNAL_SERVER_ERROR
+
+    return jsonify("Success"), HTTPStatus.NO_CONTENT
 
 if __name__ == '__main__':
     DbController.prepare_database()
