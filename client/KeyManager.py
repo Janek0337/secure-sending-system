@@ -1,5 +1,8 @@
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
+from Crypto.Hash import SHA256
+from Crypto.Signature import pkcs1_15
+import base64
 
 class KeyManager:
     def __init__(self):
@@ -63,3 +66,20 @@ class KeyManager:
         decrypted = cipher.decrypt(encrypted_data)
 
         return decrypted
+
+    def hash_and_sign_data(self, data_to_encrypt: bytes):
+        hassh = SHA256.new(data_to_encrypt)
+        if self.key is not None:
+            signature = pkcs1_15.new(self.key).sign(hassh)
+            return base64.b64encode(signature).decode('utf-8')
+        print("No key")
+        return None
+
+    def verify_signature(self, data: bytes, signature: bytes, public_key_str: str):
+        public_key = RSA.import_key(public_key_str)
+        hasher = SHA256.new(data)
+        try:
+            pkcs1_15.new(public_key).verify(hasher, signature)
+            return True
+        except (ValueError, TypeError):
+            return False

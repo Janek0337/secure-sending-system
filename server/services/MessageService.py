@@ -34,13 +34,13 @@ class MessageService:
             receiver_uid = result['user_id']
 
             cursor.execute(
-                "INSERT INTO messages (content, key, sender_id, receiver_id, date_sent) VALUES (?, ?, ?, ?, ?)",
-                (valid_message.content[0], valid_message.content[1], sender_uid, receiver_uid, time.time())
+                "INSERT INTO messages (content, key, sender_id, receiver_id, date_sent, hash) VALUES (?, ?, ?, ?, ?, ?)",
+                (valid_message.content[0], valid_message.content[1], sender_uid, receiver_uid, time.time(), valid_message.content[2])
             )
             message_id = cursor.lastrowid
-            attachments_data = [(message_id, a[0][0], a[0][1], a[1]) for a in valid_message.attachments]
+            attachments_data = [(message_id, a[0][0], a[0][1], a[1], a[2]) for a in valid_message.attachments]
             cursor.executemany(
-                "INSERT INTO attachments (message_id, name, content, key) VALUES (?, ?, ?, ?)",
+                "INSERT INTO attachments (message_id, name, content, key, hash) VALUES (?, ?, ?, ?, ?)",
                 attachments_data
             )
             db.commit()
@@ -80,7 +80,7 @@ class MessageService:
             cursor = db.cursor()
             cursor.execute(
                 "SELECT m.date_sent, m.is_read, "
-                "m.message_id, m.key, m.content, a.username "
+                "m.message_id, m.key, m.content, a.username, m.hash "
                 "FROM messages m "
                 "JOIN app_users a on m.sender_id = a.user_id "
                 "WHERE m.message_id = ? ",
@@ -90,7 +90,7 @@ class MessageService:
             message_results = cursor.fetchone()
 
             cursor.execute(
-                "SELECT name, content, key "
+                "SELECT name, content, key, hash "
                 "FROM attachments "
                 "WHERE message_id = ?",
                 (message_id,)
@@ -100,8 +100,8 @@ class MessageService:
 
             dto = DTOs.GetMessageDTO(
                 sender = message_results['username'],
-                content = (message_results['content'], message_results['key']),
-                attachments = [((a['name'], a['content']), a['key']) for a in attachment_results],
+                content = (message_results['content'], message_results['key'], message_results['hash']),
+                attachments = [((a['name'], a['content']), a['key'], a['hash']) for a in attachment_results],
                 date_sent = message_results['date_sent']
             )
             return dto
@@ -155,5 +155,12 @@ class MessageService:
         except Exception as e:
             print("Database error:", e)
             return False
+
+    def get_b64_binary_size(self, b64_string):
+        if not b64_string:
+            return 0
+        s = b64_string.strip()
+
+        return (len(s)*3 // 4) - s.count('=', -2)
         
 message_service = MessageService()

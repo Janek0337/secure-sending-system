@@ -12,13 +12,13 @@ class LoginDTO(BaseModel):
 
 class MessageDTO(BaseModel):
     receiver: str
-    content: tuple[str, str] # (message, key) in base64
-    attachments: list[tuple[tuple[str, str], str]] # [ ((filename, file_content), key) ] in base64
+    content: tuple[str, str, str] # (message, key, hash) in base64
+    attachments: list[tuple[tuple[str, str], str, str]] # [ ((filename, file_content), key, hash) ]
 
 class GetMessageDTO(BaseModel):
     sender: str
-    content: tuple[str, str] # (message, key) in base64
-    attachments: list[tuple[tuple[str, str], str]] # [ ((filename, file_content), key) ] in base64
+    content: tuple[str, str, str] # (message, key, hash) in base64
+    attachments: list[tuple[tuple[str, str], str, str]] # [ ((filename, file_content), key, hash) ] in base64
     date_sent: float
 
 class KeyTransferDTO(BaseModel):
@@ -39,5 +39,6 @@ class ViewMessage(BaseModel):
     message_id: int
     sender: str
     content: str
-    attachments: list[tuple[str, str]] # [ (filename, file_content) ] file_content in base64
+    attachments: list[tuple[str, str, str, bytes]] # [ (filename, file_content, hash, deciphered_att) ] file_content in base64
     date_sent: str
+    content_hash: str

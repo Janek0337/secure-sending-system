@@ -70,6 +70,24 @@ def send_message():
     except ValidationError:
         return jsonify("Input error"), HTTPStatus.BAD_REQUEST
 
+    # verify if message is not too large
+
+    MAX_ATTACHMENT_SIZE = 25*1024*1024
+    MAX_MESSAGE_SIZE = 5 * 1024
+
+    if message_service.get_b64_binary_size(message_dto.content[0]) > MAX_MESSAGE_SIZE:
+        return jsonify("Message too big"), HTTPStatus.CONTENT_TOO_LARGE
+
+    size_B = 0
+
+    for a in message_dto.attachments:
+        size_B += message_service.get_b64_binary_size(a[1])
+        if size_B > MAX_ATTACHMENT_SIZE:
+            break
+
+    if size_B > MAX_ATTACHMENT_SIZE:
+        return jsonify("Attachments too big"), HTTPStatus.CONTENT_TOO_LARGE
+
     save_status = message_service.save_message(token_data['uid'], message_dto.receiver, message_dto)
     if save_status == HTTPStatus.CREATED:
         res_text = "Success"
@@ -78,7 +96,7 @@ def send_message():
 
     return jsonify(res_text), save_status
 
-@app.route("/get-key", methods=["GET"])
+@app.route("/get-key", methods=["POST"])
 def get_key():
     try:
         data = request.get_json(silent=True)

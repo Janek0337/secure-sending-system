@@ -25,6 +25,7 @@ def prepare_database():
                 key TEXT NOT NULL,
                 date_sent DATETIME NOT NULL,
                 is_read INTEGER DEFAULT 0,
+                hash TEXT,
                 FOREIGN KEY (sender_id) REFERENCES app_users(user_id),
                 FOREIGN KEY (receiver_id) REFERENCES app_users(user_id)
             );
@@ -35,6 +36,7 @@ def prepare_database():
                 name TEXT NOT NULL,
                 content TEXT NOT NULL,
                 key TEXT NOT NULL,
+                hash TEXT,
                 FOREIGN KEY (message_id) REFERENCES messages(message_id)
             );
             """

@@ -5,7 +5,11 @@
 {% block content %}
     <h1>Send new message</h1>
 
-    <form id="mainForm" action="#" method="POST" enctype="multipart/form-data">
+    <form action="/menu" method="GET">
+        <button type="submit">Go back to menu without saving</button>
+    </form>
+
+    <form id="mainForm" action="/message" method="POST" enctype="multipart/form-data">
         
         <p>
             <label for="receiver">Receiver:</label><br>
@@ -19,7 +23,7 @@
 
         <p>
             <label for="attachment">Add attachments (you can add multiple times):</label><br>
-            <input type="file" id="attachment" multiple>
+            <input type="file" id="attachment" name="attachments" multiple>
         </p>
 
         <p>
@@ -35,16 +39,23 @@
 
     </form>
 
-    <script>
+    <h4>Message requirements:</h4>
+        <ul>
+            <li>Message content cannot be longer than approximately 6800 characters</li>
+            <li>All attachments combined cannot be larger than 25 MB</li>
+        </ul>
+<script>
     const fileInput = document.getElementById('attachment');
     const fileListDisplay = document.getElementById('file-list');
+    const mainForm = document.getElementById('mainForm');
     let allFiles = [];
 
-    fileInput.addEventListener('change', function() {
+    fileInput.addEventListener('change', function(e) {
         for (let i = 0; i < this.files.length; i++) {
             allFiles.push(this.files[i]);
         }
         renderFileList();
+        // Clear the file input to allow adding the same file again if needed
         this.value = "";
     });
 
@@ -73,34 +84,17 @@
         });
     }
 
-    document.getElementById('mainForm').onsubmit = function(e) {
-        e.preventDefault();
-
-        let formData = new FormData();
-        formData.append('receiver', document.getElementById('receiver').value);
-        formData.append('message', document.getElementById('message').value);
-
-        allFiles.forEach((file) => {
-            formData.append('attachments', file);
+    mainForm.addEventListener('submit', function(e) {
+        // Use a DataTransfer object to create a new FileList
+        const dataTransfer = new DataTransfer();
+        allFiles.forEach(file => {
+            dataTransfer.items.add(file);
         });
 
-        fetch('/message', {
-            method: 'POST',
-            body: formData,
-            credentials: 'include'
-        })
-        .then(async response => {
-            if (response.ok) {
-                window.location.href = response.url;
-            } else {
-                const text = await response.text();
-                alert("Problem: " + text);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert("Server error");
-        });
-    };
+        // Assign the new FileList to the file input
+        fileInput.files = dataTransfer.files;
+
+        // The form will now submit with all the files
+    });
 </script>
 {% endblock %}
