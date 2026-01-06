@@ -1,53 +1,60 @@
 from server.DbController import get_db
 from shared import DTOs
 import time
-from http import HTTPStatus
+import traceback
 from pydantic import ValidationError
 
 class MessageService:
-    def get_key_by_username(self, username: str):
-        db = get_db()
+    def get_key_by_username(self, usernames: DTOs.KeyTransferDTO):
+        if not usernames:
+            return {}
         try:
+            db = get_db()
             cursor = db.cursor()
-            cursor.execute(
-                "SELECT public_key FROM app_users WHERE username = ?",
-                (username,)
-            )
-            result = cursor.fetchone()
+            placeholders = ', '.join(['?'] * len(usernames.key_list))
+            query = f"SELECT username, public_key FROM app_users WHERE username IN ({placeholders})"
+            cursor.execute(query, list(usernames.key_list.keys()))
+            result = cursor.fetchall()
             if result is not None:
-                return result['public_key']
-            return None
+                return {res['username'] : res['public_key'] for res in result}
+            return {}
         except Exception as e:
-            print("Database error:", e)
-            return None
+            error_details = traceback.format_exc()
+            print("Wystąpił błąd:\n", error_details)
+            return {}
 
-    def save_message(self, sender_uid: int, receiver_name: str, valid_message: DTOs.MessageDTO):
+    def save_message(self, sender_uid: int, valid_messages: list[DTOs.MessageDTO]):
         db = get_db()
+        result_dict = {}
         try:
             cursor = db.cursor()
-            cursor.execute(
-                "SELECT user_id FROM app_users where username = ?", (receiver_name,)
-            )
-            result = cursor.fetchone()
-            if result is None:
-                return HTTPStatus.NOT_FOUND
-            receiver_uid = result['user_id']
+            for valid_message in valid_messages:
+                receiver_name = valid_message.receiver
+                cursor.execute(
+                    "SELECT user_id FROM app_users where username = ?", (receiver_name,)
+                )
+                result = cursor.fetchone()
+                if result is None:
+                    result_dict[receiver_name] = False
+                    continue
+                receiver_uid = result['user_id']
 
-            cursor.execute(
-                "INSERT INTO messages (content, key, sender_id, receiver_id, date_sent, hash) VALUES (?, ?, ?, ?, ?, ?)",
-                (valid_message.content[0], valid_message.content[1], sender_uid, receiver_uid, time.time(), valid_message.content[2])
-            )
-            message_id = cursor.lastrowid
-            attachments_data = [(message_id, a[0][0], a[0][1], a[1], a[2]) for a in valid_message.attachments]
-            cursor.executemany(
-                "INSERT INTO attachments (message_id, name, content, key, hash) VALUES (?, ?, ?, ?, ?)",
-                attachments_data
-            )
+                cursor.execute(
+                    "INSERT INTO messages (content, key, sender_id, receiver_id, date_sent, hash) VALUES (?, ?, ?, ?, ?, ?)",
+                    (valid_message.content[0], valid_message.content[1], sender_uid, receiver_uid, time.time(), valid_message.content[2])
+                )
+                message_id = cursor.lastrowid
+                attachments_data = [(message_id, a[0][0], a[0][1], a[1], a[2]) for a in valid_message.attachments]
+                cursor.executemany(
+                    "INSERT INTO attachments (message_id, name, content, key, hash) VALUES (?, ?, ?, ?, ?)",
+                    attachments_data
+                )
+                result_dict[receiver_name] = True
             db.commit()
-            return HTTPStatus.CREATED
+            return result_dict
         except Exception as e:
             print("Database error:", e)
-            return HTTPStatus.INTERNAL_SERVER_ERROR
+            return None
 
     def get_messages_list(self, receiver_uid: int):
         db = get_db()
@@ -155,12 +162,5 @@ class MessageService:
         except Exception as e:
             print("Database error:", e)
             return False
-
-    def get_b64_binary_size(self, b64_string):
-        if not b64_string:
-            return 0
-        s = b64_string.strip()
-
-        return (len(s)*3 // 4) - s.count('=', -2)
         
 message_service = MessageService()

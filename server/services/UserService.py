@@ -2,7 +2,7 @@ from shared import DTOs
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from server.DbController import get_db
-from shared.utils import is_password_secure
+import shared.utils as utils
 
 class UserService:
     def __init__(self):
@@ -19,14 +19,15 @@ class UserService:
 
 
     def register_user(self, reg_dto: DTOs.RegisterDTO):
-        if not is_password_secure(reg_dto.password):
+        if not utils.is_password_secure(reg_dto.password):
+            return False
+        if not utils.verify_username(reg_dto.username):
             return False
 
         reg_dto.password = self.phash.hash(reg_dto.password)
 
-        db = get_db()
-
         try:
+            db = get_db()
             cursor = db.cursor()
             cursor.execute(
                 "INSERT INTO app_users (username, password, email, public_key) VALUES (?, ?, ?, ?)",

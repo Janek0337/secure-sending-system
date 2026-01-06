@@ -1,5 +1,7 @@
 from flask import Flask, render_template, redirect, request, flash, url_for, make_response, jsonify
 import requests
+from pydantic import ValidationError
+
 from shared import DTOs
 import KeyManager
 import Ciphrer
@@ -7,7 +9,10 @@ from http import HTTPStatus
 import os
 import base64
 from datetime import datetime
+
+from shared.DTOs import MessageDTO
 from shared.utils import is_password_secure
+import shared.utils as utils
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -78,79 +83,110 @@ def register():
         flash("Password is not secure enough. Did not register.", "error")
         return redirect(url_for('register'))
 
-    key_manager.create_key()
-    try:
-        register_dto = DTOs.RegisterDTO(username=username, password=password, email=email, public_key=key_manager.get_pub_key_text())
-        res = requests.post(url=server_address + "/register", json=register_dto.model_dump())
-        if res.status_code == HTTPStatus.CREATED:
-            flash("Successful registration! You can now log in.", "success")
-            return redirect(url_for('login'))
-        elif res.status_code == HTTPStatus.CONFLICT:
-            flash("User with such username already exists.", "error")
-            return redirect(url_for('register'))
-        else:
-            flash("Error has happened.", "error")
-            return redirect(url_for('register'))
-    finally:
-        key_manager.save_key(username, password)
+    if not utils.verify_username(username):
+        flash("Username does not comply with username requirements stated below.")
+        return redirect(url_for('register'))
 
+    key_manager.create_key()
+    register_dto = DTOs.RegisterDTO(username=username, password=password, email=email, public_key=key_manager.get_pub_key_text())
+    res = requests.post(url=server_address + "/register", json=register_dto.model_dump())
+    if res.status_code == HTTPStatus.CREATED:
+        flash(f"Successful registration! You can now log in as \"{username}\"", "success")
+        key_manager.save_key(username, password)
+        return redirect(url_for('login'))
+    elif res.status_code == HTTPStatus.CONFLICT:
+        flash("User with such username already exists. Did not register.", "error")
+        return redirect(url_for('register'))
+    else:
+        flash("Error has happened. Did not register.", "error")
+        return redirect(url_for('register'))
 
 @app.route('/message', methods=["GET","POST"])
 def message():
     if request.method == "GET":
         return render_template('messenger.html')
-    
-    receiver = request.form['receiver']
-    content = request.form['message']
-
-    res = requests.post(url = server_address + "/get-key", json=DTOs.KeyTransferDTO(username=receiver, key=None).model_dump())
-    if res.status_code == HTTPStatus.OK:
-        receiver_key = res.json()['key']
-    elif res.status_code == HTTPStatus.NOT_FOUND:
-        return f"Receiver '{receiver}' not found", HTTPStatus.NOT_FOUND
-    else:
-        return f"Server error", HTTPStatus.INTERNAL_SERVER_ERROR
-
-    message_hash = key_manager.hash_and_sign_data(content.encode('utf-8'))
-    encrypted_message, message_key = ciphrer.encrypt_data(content.encode("utf-8")) # aes
-    encrypted_message_key = key_manager.encrypt_data(message_key, receiver_key.encode("utf-8")) # rsa
-
-    preprocessed_attachments = [(f.filename, f.read()) for f in request.files.getlist('attachments') if f.filename]
-    ready_attachment_list = []
-    for attachment in preprocessed_attachments:
-        data = attachment[1]
-        attachment_hash = key_manager.hash_and_sign_data(data)
-        encrypted_data, data_key = ciphrer.encrypt_data(data) # aes
-        encrypted_filename, _ = ciphrer.encrypt_data(attachment[0].encode("utf-8"), data_key)
-        encrypted_data_key = key_manager.encrypt_data(data_key, receiver_key) # rsa
-        ready_attachment_list.append(((encode_bytes_to_b64(encrypted_filename),
-                                       encode_bytes_to_b64(encrypted_data)),
-                                      encode_bytes_to_b64(encrypted_data_key),
-                                    attachment_hash
-                                     ))
-        
-    to_send = DTOs.MessageDTO(
-        receiver=receiver,
-        content=(encode_bytes_to_b64(encrypted_message), encode_bytes_to_b64(encrypted_message_key), message_hash),
-        attachments=ready_attachment_list
-        )
 
     token = request.cookies.get('access-token')
     if not token:
-        return jsonify("Please log in again."), HTTPStatus.FORBIDDEN
-
+        flash("Please log in again.", "error")
+        return redirect(url_for('login'))
     cookies = {'access-token': token}
-    res = requests.post(url=server_address + "/message", json=to_send.model_dump(), cookies=cookies)
-    if res.status_code == HTTPStatus.CREATED:
-        flash(f"Sent message to {receiver}", "success")
-        return redirect(url_for('menu'))
-    elif res.status_code == HTTPStatus.CONTENT_TOO_LARGE:
-        flash("Either message is too long or attachments too large. Did not send the message", "error")
+
+    receivers = request.form['receiver'].split(',')
+    receivers = [r.strip() for r in receivers]
+    content = request.form['message']
+
+    key_res = requests.post(url = server_address + "/get-key", json=DTOs.KeyTransferDTO(
+        key_list={r : None for r in receivers}).model_dump())
+    try:
+        data = key_res.json()
+        keys = DTOs.KeyTransferDTO(**data)
+    except ValidationError as e:
+        print("Validation error:", e.json())
+        flash("Key error happened", "error")
         return redirect(url_for('message'))
-    else:
-        flash(f"Couldn't send message, code: {res.status_code}", "error")
-        return redirect(url_for('message'))
+
+    list_of_messages: list[MessageDTO] = []
+    for receiver in receivers:
+        receiver_key = keys.key_list.get(receiver)
+        if receiver_key is None:
+            flash(f"Could not send message to \"{receiver}\" (no key)", "error")
+            continue
+
+        message_hash = key_manager.hash_and_sign_data(content.encode('utf-8'))
+        encrypted_message, message_key = ciphrer.encrypt_data(content.encode("utf-8")) # aes
+        encrypted_message_key = key_manager.encrypt_data(message_key, receiver_key.encode("utf-8")) # rsa
+
+        preprocessed_attachments = [(f.filename, f.read()) for f in request.files.getlist('attachments') if f.filename]
+        ready_attachment_list = []
+        for attachment in preprocessed_attachments:
+            data = attachment[1]
+            attachment_hash = key_manager.hash_and_sign_data(data)
+            encrypted_data, data_key = ciphrer.encrypt_data(data) # aes
+            encrypted_filename, _ = ciphrer.encrypt_data(attachment[0].encode("utf-8"), data_key)
+            encrypted_data_key = key_manager.encrypt_data(data_key, receiver_key.encode("utf-8")) # rsa
+            ready_attachment_list.append(((encode_bytes_to_b64(encrypted_filename),
+                                           encode_bytes_to_b64(encrypted_data)),
+                                          encode_bytes_to_b64(encrypted_data_key),
+                                        attachment_hash
+                                         ))
+
+        to_send = DTOs.MessageDTO(
+            receiver=receiver,
+            content=(encode_bytes_to_b64(encrypted_message), encode_bytes_to_b64(encrypted_message_key), message_hash),
+            attachments=ready_attachment_list
+            )
+
+        if utils.verify_message_size(to_send) == HTTPStatus.CONTENT_TOO_LARGE:
+            flash("Either message is too long or attachments too large. Did not send the message", "error")
+            return redirect(url_for('message'))
+
+        list_of_messages.append(to_send)
     
+    if not list_of_messages:
+        flash("No messages were sent.", "error")
+        return redirect(url_for('message'))
+
+    res = requests.post(url=f"{server_address}/message", json=DTOs.MessageListDTO(message_list=list_of_messages).model_dump(), cookies=cookies)
+    if res.status_code == HTTPStatus.INTERNAL_SERVER_ERROR:
+        flash("Server error. Please try again.", "error")
+        return redirect(url_for('message'))
+
+    try:
+        result_dict = res.json()
+    except (requests.exceptions.JSONDecodeError, ValidationError):
+        flash("Failed to decode server response.", "error")
+        return redirect(url_for('message'))
+
+    successful = [name for name, status in result_dict.items() if status]
+    failed = [name for name, status in result_dict.items() if not status]
+
+    if successful:
+        flash(f"Successfully sent to: {', '.join(successful)}", "success")
+    if failed:
+        flash(f"Failed to send to: {', '.join(failed)}", "error")
+    return redirect(url_for('menu'))
+
 @app.route('/menu', methods=["GET"])
 def menu():
     message_list = []
@@ -220,27 +256,32 @@ def get_the_message(message_id):
     print(f"Hash: {message_hash}")
     verified = False
     username = dto.sender
-    res = requests.post(url=f"{server_address}/get-key",
-                        json=DTOs.KeyTransferDTO(username=username, key=None).model_dump())
-    if res.status_code == HTTPStatus.OK:
-        key = res.json().get("key")
-        verified = key_manager.verify_signature(
-            data=deciphered_content,
-            signature=decode_bytes_from_b64(message_hash),
-            public_key_str=key
-        )
+    res = requests.post(url=f"{server_address}/get-key", json=DTOs.KeyTransferDTO(
+        key_list={username : None}).model_dump())
 
-        if verified:
-            for a in good_attachments:
-                if not key_manager.verify_signature(
-                        data=a[3],
-                        signature=decode_bytes_from_b64(a[2]),
-                        public_key_str=key
-                ):
-                    verified = False
-                    break
-    else:
-        flash("Could not verify authenticity of the message", "error")
+    try:
+        data = res.json()
+        dto = DTOs.KeyTransferDTO(**data)
+        if dto.key_list[username] is not None:
+            verified = key_manager.verify_signature(
+                data=deciphered_content,
+                signature=decode_bytes_from_b64(message_hash),
+                public_key_str=dto.key_list[username]
+            )
+
+            if verified:
+                for a in good_attachments:
+                    if not key_manager.verify_signature(
+                            data=a[3],
+                            signature=decode_bytes_from_b64(a[2]),
+                            public_key_str=dto.key_list[username]
+                    ):
+                        verified = False
+                        break
+        else:
+            flash("Could not verify authenticity of the message", "error")
+    except ValidationError as e:
+        print("Validation error:", e.json())
 
     return render_template('message_view.html', data=message_data, verified=verified)
 
@@ -277,17 +318,24 @@ def delete_message(message_id):
 @app.route("/get-key", methods=["POST"])
 def get_key():
     username = request.form.get("sender")
-    res = requests.post(url=f"{server_address}/get-key", json=DTOs.KeyTransferDTO(username=username, key=None).model_dump())
-    if res.status_code == HTTPStatus.OK:
-        key = res.json().get("key")
+    res = requests.post(url=f"{server_address}/get-key", json=DTOs.KeyTransferDTO(
+        key_list={username, None}).model_dump())
+    try:
+        data = res.json()
+        dto = DTOs.KeyTransferDTO(**data)
+        key = dto[username]
+
+        if key is None:
+            flash("Error. Did not download key.")
+            return redirect(url_for('menu'))
+
         filename = f"keys/public_key_{username}.pem"
         with open(filename, "wb") as f:
             f.write(key.encode("utf-8"))
             flash(f"Key downloaded to file: {filename}", "success")
             return redirect(url_for('menu'))
-    else:
-        flash("Error. Did not download key.")
-        return redirect(url_for('menu'))
+    except ValidationError as e:
+        print("Validation error:", e.json())
 
 if __name__ == "__main__":
     app.run(debug=True, port=3045)

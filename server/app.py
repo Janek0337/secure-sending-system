@@ -7,6 +7,8 @@ from services.UserService import user_service
 from JWT_manager import JWT_manager
 from services.MessageService import message_service
 import base64
+import shared.utils as utils
+from shared.DTOs import MessageDTO
 
 app = Flask(__name__)
 jwt_manager = JWT_manager()
@@ -66,35 +68,20 @@ def send_message():
         data = request.get_json(silent=True)
         if data is None:
             return jsonify("Input error"), HTTPStatus.BAD_REQUEST
-        message_dto = DTOs.MessageDTO(**data)
+        message_dto = DTOs.MessageListDTO(**data)
+        list_of_messages = message_dto.message_list
     except ValidationError:
         return jsonify("Input error"), HTTPStatus.BAD_REQUEST
 
-    # verify if message is not too large
+    # i assume all messages have the same content, just sent to different people so checking just one message is sufficient
+    if utils.verify_message_size(list_of_messages[0]) == HTTPStatus.CONTENT_TOO_LARGE:
+        return jsonify("Message too long or attachments too large"), HTTPStatus.CONTENT_TOO_LARGE
 
-    MAX_ATTACHMENT_SIZE = 25*1024*1024
-    MAX_MESSAGE_SIZE = 5 * 1024
-
-    if message_service.get_b64_binary_size(message_dto.content[0]) > MAX_MESSAGE_SIZE:
-        return jsonify("Message too big"), HTTPStatus.CONTENT_TOO_LARGE
-
-    size_B = 0
-
-    for a in message_dto.attachments:
-        size_B += message_service.get_b64_binary_size(a[1])
-        if size_B > MAX_ATTACHMENT_SIZE:
-            break
-
-    if size_B > MAX_ATTACHMENT_SIZE:
-        return jsonify("Attachments too big"), HTTPStatus.CONTENT_TOO_LARGE
-
-    save_status = message_service.save_message(token_data['uid'], message_dto.receiver, message_dto)
-    if save_status == HTTPStatus.CREATED:
-        res_text = "Success"
+    save_status = message_service.save_message(token_data['uid'], list_of_messages)
+    if save_status is None:
+        return jsonify(None), HTTPStatus.INTERNAL_SERVER_ERROR
     else:
-        res_text = "Error"
-
-    return jsonify(res_text), save_status
+        return jsonify(save_status), HTTPStatus.OK
 
 @app.route("/get-key", methods=["POST"])
 def get_key():
@@ -106,11 +93,9 @@ def get_key():
     except ValidationError:
         return jsonify("Input error"), HTTPStatus.BAD_REQUEST
 
-    key = message_service.get_key_by_username(key_request_dto.username)
-    
-    if key is None:
-        return jsonify(DTOs.KeyTransferDTO(username=key_request_dto.username, key=None).model_dump()), HTTPStatus.NOT_FOUND
-    return jsonify(DTOs.KeyTransferDTO(username=key_request_dto.username, key=key).model_dump()), HTTPStatus.OK
+    keys_dict = message_service.get_key_by_username(key_request_dto)
+
+    return jsonify(DTOs.KeyTransferDTO(key_list=keys_dict).model_dump()), HTTPStatus.OK
 
 @app.route("/get-messages", methods=["POST"])
 def get_messages():

@@ -15,6 +15,9 @@ class MessageDTO(BaseModel):
     content: tuple[str, str, str] # (message, key, hash) in base64
     attachments: list[tuple[tuple[str, str], str, str]] # [ ((filename, file_content), key, hash) ]
 
+class MessageListDTO(BaseModel):
+    message_list: list[MessageDTO]
+
 class GetMessageDTO(BaseModel):
     sender: str
     content: tuple[str, str, str] # (message, key, hash) in base64
@@ -22,8 +25,7 @@ class GetMessageDTO(BaseModel):
     date_sent: float
 
 class KeyTransferDTO(BaseModel):
-    username: str
-    key: str | None
+    key_list: dict[str, str | None] # {username: key}
 
 class MessageListElementDTO(BaseModel):
     username: str
