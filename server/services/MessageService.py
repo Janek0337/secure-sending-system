@@ -20,7 +20,7 @@ class MessageService:
             return {}
         except Exception as e:
             error_details = traceback.format_exc()
-            print("Wystąpił błąd:\n", error_details)
+            print("Error has happened:", error_details)
             return {}
 
     def save_message(self, sender_uid: int, valid_messages: list[DTOs.MessageDTO]):
@@ -113,7 +113,7 @@ class MessageService:
             )
             return dto
         except Exception as e:
-            print("Database error here:", e)
+            print("Database error:", e)
             return False
 
     def is_user_receiver_of_message(self, username: str, message_id: int) -> bool:

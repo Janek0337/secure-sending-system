@@ -1,10 +1,11 @@
 import sqlite3
 from flask import g
+from pathlib import Path
 
-DATABASE = 'database.db'
+DATABASE = Path(__file__).parent / 'database.db'
 def prepare_database():
     try:
-        with sqlite3.connect('database.db') as conn:
+        with sqlite3.connect(DATABASE) as conn:
             conn.execute("PRAGMA foreign_keys = ON;")
             cursor = conn.cursor()
 
@@ -14,7 +15,8 @@ def prepare_database():
                 username TEXT NOT NULL UNIQUE,
                 password TEXT NOT NULL,
                 email TEXT NOT NULL,
-                public_key TEXT
+                public_key TEXT,
+                secret TEXT
             );
 
             CREATE TABLE IF NOT EXISTS messages(

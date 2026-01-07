@@ -56,7 +56,6 @@
             allFiles.push(this.files[i]);
         }
         renderFileList();
-        // Clear the file input to allow adding the same file again if needed
         this.value = "";
     });
 
@@ -86,16 +85,13 @@
     }
 
     mainForm.addEventListener('submit', function(e) {
-        // Use a DataTransfer object to create a new FileList
         const dataTransfer = new DataTransfer();
         allFiles.forEach(file => {
             dataTransfer.items.add(file);
         });
 
-        // Assign the new FileList to the file input
         fileInput.files = dataTransfer.files;
 
-        // The form will now submit with all the files
     });
 </script>
 {% endblock %}

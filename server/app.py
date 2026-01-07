@@ -8,7 +8,7 @@ from JWT_manager import JWT_manager
 from services.MessageService import message_service
 import base64
 import shared.utils as utils
-from shared.DTOs import MessageDTO
+from shared.TOTP_manager import totp_manager
 
 app = Flask(__name__)
 jwt_manager = JWT_manager()
@@ -30,8 +30,9 @@ def register():
         if user_service.user_exists(register_dto.username):
             return jsonify("User already exists"), HTTPStatus.CONFLICT
 
-        if user_service.register_user(register_dto):
-            return jsonify("User created"), HTTPStatus.CREATED
+        register_result = user_service.register_user(register_dto)
+        if register_result is not False:
+            return jsonify({"secret": register_result}), HTTPStatus.CREATED
         else:
             return jsonify("Input error"), HTTPStatus.BAD_REQUEST
 
@@ -53,14 +54,33 @@ def login():
     if not verification_result:
         return jsonify("Invalid login credentials"), HTTPStatus.FORBIDDEN
     
-    jwt_token = {'access-token': jwt_manager.create_token(verification_result, login_dto.username)}
+    jwt_token = {'access-token': jwt_manager.create_token(verification_result, login_dto.username, False)}
 
     return jsonify(jwt_token), HTTPStatus.OK
+
+@app.route("/verify-totp", methods=["POST"])
+def verify_totp():
+    token = request.cookies.get('access-token')
+    token_data = jwt_manager.validate_jwt_token(token, False)
+    if token_data is None:
+        return jsonify("Invalid token"), HTTPStatus.FORBIDDEN
+
+    data = request.get_json(silent=True)
+    if data is None or 'code' not in data:
+        return jsonify("Input error"), HTTPStatus.BAD_REQUEST
+
+    intended_code = totp_manager.count_totp_code(user_service.get_secret(token_data['uid']))
+    given_code = data['code']
+
+    if given_code in intended_code:
+        return jsonify({"token" : jwt_manager.create_token(token_data['uid'], token_data['username'], True)}), HTTPStatus.OK
+    else:
+        return jsonify("Bad code bruh"), HTTPStatus.FORBIDDEN
 
 @app.route("/message", methods=["POST"])
 def send_message():
     token = request.cookies.get('access-token')
-    token_data = jwt_manager.validate_jwt_token(token)
+    token_data = jwt_manager.validate_jwt_token(token, True)
     if token_data is None:
         return jsonify("Invalid token"), HTTPStatus.FORBIDDEN
 
@@ -100,7 +120,7 @@ def get_key():
 @app.route("/get-messages", methods=["POST"])
 def get_messages():
     token = request.cookies.get('access-token')
-    token_data = jwt_manager.validate_jwt_token(token)
+    token_data = jwt_manager.validate_jwt_token(token, True)
     if token_data is None:
         return jsonify("Invalid token"), HTTPStatus.FORBIDDEN
 
@@ -114,7 +134,7 @@ def get_messages():
 @app.route("/get-the-message/<int:message_id>", methods=["GET"])
 def get_message(message_id):
     token = request.cookies.get('access-token')
-    token_data = jwt_manager.validate_jwt_token(token)
+    token_data = jwt_manager.validate_jwt_token(token, True)
     if token_data is None:
         return jsonify("Invalid token"), HTTPStatus.FORBIDDEN
 
@@ -126,7 +146,7 @@ def get_message(message_id):
 @app.route("/mark-read/<int:message_id>", methods=["POST"])
 def mark_read(message_id):
     token = request.cookies.get('access-token')
-    token_data = jwt_manager.validate_jwt_token(token)
+    token_data = jwt_manager.validate_jwt_token(token, True)
     if token_data is None:
         return jsonify("Invalid token"), HTTPStatus.FORBIDDEN
     if not message_service.is_user_receiver_of_message(token_data['username'], message_id):
@@ -139,7 +159,7 @@ def mark_read(message_id):
 @app.route("/delete-message/<int:message_id>", methods=["DELETE"])
 def delete_message(message_id):
     token = request.cookies.get('access-token')
-    token_data = jwt_manager.validate_jwt_token(token)
+    token_data = jwt_manager.validate_jwt_token(token, True)
     if token_data is None:
         return jsonify("Invalid token"), HTTPStatus.FORBIDDEN
     if not message_service.is_user_receiver_of_message(token_data['username'], message_id):

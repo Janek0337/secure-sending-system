@@ -45,3 +45,5 @@ class AES_cipherer:
         unpadded_data = self.unpad_data(decrypted_data)
 
         return unpadded_data
+
+ciphrer = AES_cipherer()

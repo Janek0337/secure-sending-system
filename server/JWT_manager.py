@@ -26,7 +26,7 @@ class JWT_manager:
         padding = '=' * (4 - len(data) % 4)
         return base64.urlsafe_b64decode(data + padding)
 
-    def make_payload64(self, uid, username):
+    def make_payload64(self, uid, username, verified):
         time_now = int(time.time())
         time_valid_seconds = 3600
         payload = {
@@ -34,6 +34,7 @@ class JWT_manager:
             "iat": time_now,
             "exp": time_now + time_valid_seconds,
             "username": username,
+            "verified": verified,
             "iss": "sss.serv"
         }
         return self.safe_base64_encode(payload)
@@ -46,12 +47,12 @@ class JWT_manager:
 
         return signature64
     
-    def create_token(self, uid, username):
-        payload64 = self.make_payload64(uid, username)
+    def create_token(self, uid, username, verified):
+        payload64 = self.make_payload64(uid, username, verified)
         signature = self.make_signature(payload64).decode("utf-8") # now it's a text to make it sendable in JSON
         return self.header64.decode("utf-8") + '.' + payload64.decode("utf-8") + '.' + signature
 
-    def validate_jwt_token(self, token: str) -> None | dict :
+    def validate_jwt_token(self, token: str, intended_verify) -> None | dict :
         try:
             header, payload, signature = token.split('.')
         except Exception as e:
@@ -72,6 +73,9 @@ class JWT_manager:
 
             if int(time.time()) > payload_dict.get("exp", 0):
                 print("Expired token")
+                return None
+
+            if payload_dict.get("verified") is False and intended_verify is True:
                 return None
 
             return {'username': payload_dict['username'], 'uid': payload_dict['sub']}

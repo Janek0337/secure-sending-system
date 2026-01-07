@@ -1,24 +1,24 @@
-from flask import Flask, render_template, redirect, request, flash, url_for, make_response, jsonify
+from flask import Flask, render_template, redirect, request, flash, url_for, make_response
 import requests
 from pydantic import ValidationError
 
-from shared import DTOs
+from shared import DTOs, Ciphrer
 import KeyManager
-import Ciphrer
 from http import HTTPStatus
 import os
 import base64
 from datetime import datetime
 
 from shared.DTOs import MessageDTO
+from shared.TOTP_manager import totp_manager
 from shared.utils import is_password_secure
 import shared.utils as utils
+from shared.Ciphrer import ciphrer
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 server_address = "http://127.0.0.1:5000"
 key_manager = KeyManager.KeyManager()
-ciphrer = Ciphrer.AES_cipherer()
 
 def encode_bytes_to_b64(b):
     return base64.b64encode(b).decode('utf-8')
@@ -37,25 +37,34 @@ def login():
 
     username = request.form.get('username')
     password = request.form.get('password')
-    payload = {
-        "username": username,
-        "password": password
-    }
+
+    dto = DTOs.LoginDTO(
+        username=username,
+        password=password
+    )
+
     try:
-        res = requests.post(url=server_address+"/login", json=payload)
-        my_res = make_response(redirect(url_for('menu')))
+        my_secret = totp_manager.load_secret(username)
+        print(f"My code is: {totp_manager.count_totp_code(my_secret)}")
+    except RuntimeError:
+        print("You have no secret saved on this instance.")
+
+
+    try:
+        res = requests.post(url=server_address+"/login", json=dto.model_dump())
+        my_res = make_response(redirect(url_for('verify_totp')))
         if res.status_code == HTTPStatus.OK:
-            print("Udane logowanie")
+            print("Successful login")
             token = res.json().get('access-token')
             if token:
                 my_res.set_cookie(
                     'access-token',
                     token,
-                    # httponly=True, TODO: uncomment later
+                    httponly=True,
                     samesite='Lax'
                 )
         else:
-            print("Nieudane logowanie")
+            print("Unsuccessful login")
 
         if not key_manager.load_key(username, password):
             flash("Missing or faulty key")
@@ -64,6 +73,39 @@ def login():
 
     except requests.exceptions.RequestException as e:
         print("Exception:", e)
+
+@app.route("/verify-totp", methods=["GET", "POST"])
+def verify_totp():
+    if request.method == "GET":
+        return render_template("totp.html")
+
+    token = request.cookies.get('access-token')
+    if not token:
+        flash("Please log in again.", "error")
+        return redirect(url_for('login'))
+    cookies = {'access-token': token}
+
+    code = request.form.get('totp')
+    res = requests.post(url=f"{server_address}/verify-totp", json={"code" : code}, cookies=cookies)
+    if res.status_code == HTTPStatus.OK:
+        token = res.json().get('token')
+        if token:
+            my_res = make_response(redirect(url_for('menu')))
+            my_res.set_cookie(
+                'access-token',
+                token,
+                httponly=True,
+                samesite='Lax'
+            )
+            return my_res
+        else:
+            flash("Server error", "error"), HTTPStatus.INTERNAL_SERVER_ERROR
+    elif res.status_code == HTTPStatus.FORBIDDEN:
+        flash("Wrong code. Try again?", "error")
+    else:
+        flash("Error", "error")
+
+    return redirect(url_for('verify_totp'))
 
 @app.route('/register', methods=["GET", "POST"])
 def register():
@@ -91,8 +133,12 @@ def register():
     register_dto = DTOs.RegisterDTO(username=username, password=password, email=email, public_key=key_manager.get_pub_key_text())
     res = requests.post(url=server_address + "/register", json=register_dto.model_dump())
     if res.status_code == HTTPStatus.CREATED:
-        flash(f"Successful registration! You can now log in as \"{username}\"", "success")
+        flash(f"Successful registration! You can now log in as \"{username}\"\n"
+              f"Your secret was saved to /client/.env", "success")
         key_manager.save_key(username, password)
+        data = res.json()
+        totp_manager.save_totp_secret_to_env(data['secret'], username)
+
         return redirect(url_for('login'))
     elif res.status_code == HTTPStatus.CONFLICT:
         flash("User with such username already exists. Did not register.", "error")
@@ -253,7 +299,6 @@ def get_the_message(message_id):
         date_sent=date_str,
         content_hash=message_hash
     )
-    print(f"Hash: {message_hash}")
     verified = False
     username = dto.sender
     res = requests.post(url=f"{server_address}/get-key", json=DTOs.KeyTransferDTO(
