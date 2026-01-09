@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 
+docker build -t secure-sending-system .
+
 ENV_FILE="./server/.env"
+DB_FILE="./server/database.db"
 
 if [ ! -f $ENV_FILE ]; then
   echo "No .env file found. Go to ./server.env and fill your credentials before starting!"
@@ -16,6 +19,10 @@ fi
 if ! grep -qE "^SECRET_KEY=\"[a-zA-Z0-9+/]{32,}={0,2}\"$" "$ENV_FILE"; then
   echo "Invalid or missing SECRET_KEY in .env"
   exit 1
+fi
+
+if [ ! -f "$DB_FILE" ]; then
+  touch "$DB_FILE"
 fi
 
 docker run -p 3045:3045 \
