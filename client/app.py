@@ -2,7 +2,7 @@ from flask import Flask, render_template, redirect, request, flash, url_for, mak
 import requests
 from pydantic import ValidationError
 
-from shared import DTOs, Ciphrer
+from shared import DTOs
 import KeyManager
 from http import HTTPStatus
 import os
@@ -17,7 +17,7 @@ from shared.Ciphrer import ciphrer
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
-server_address = "http://127.0.0.1:5000"
+server_address = "http://79.76.42.9:5000"
 key_manager = KeyManager.KeyManager()
 
 def encode_bytes_to_b64(b):

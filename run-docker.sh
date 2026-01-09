@@ -25,7 +25,7 @@ if [ ! -f "$DB_FILE" ]; then
   touch "$DB_FILE"
 fi
 
-docker run -p 3045:3045 \
+docker run -p 5000:5000 \
   -v $(pwd)/server/database.db:/app/server/database.db \
   -v $(pwd)/server/.env:/app/server/.env \
   secure-sending-system

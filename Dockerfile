@@ -6,5 +6,5 @@ COPY server/pyproject.toml ./server/
 RUN uv sync --frozen --no-install-project --package server
 COPY shared/ ./shared
 COPY server/ ./server
-EXPOSE 3045
+EXPOSE 5000
 CMD ["uv", "run", "python3", "-m", "server.app"]
