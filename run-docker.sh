@@ -16,8 +16,8 @@ if ! grep -qE "^JWT_SECRET=\"[a-zA-Z0-9+/]{32,}={0,2}\"$" "$ENV_FILE"; then
   exit 1
 fi
 
-if ! grep -qE "^SECRET_KEY=\"[a-zA-Z0-9+/]{32,}={0,2}\"$" "$ENV_FILE"; then
-  echo "Invalid or missing SECRET_KEY in .env"
+if ! grep -qE "^MASTER_KEY=\"[a-zA-Z0-9+/]{32,}={0,2}\"$" "$ENV_FILE"; then
+  echo "Invalid or missing MASTER_KEY in .env"
   exit 1
 fi
 

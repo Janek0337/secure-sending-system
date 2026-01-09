@@ -1,11 +1,11 @@
 from shared import DTOs
 from flask import Flask, jsonify, request
-import DbController as DbController
+import server.DbController as DbController
 from pydantic import ValidationError
 from http import HTTPStatus
-from services.UserService import user_service
-from JWT_manager import JWT_manager
-from services.MessageService import message_service
+from server.services.UserService import user_service
+from server.JWT_manager import JWT_manager
+from server.services.MessageService import message_service
 import base64
 import shared.utils as utils
 from shared.TOTP_manager import totp_manager
