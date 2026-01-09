@@ -1,8 +1,12 @@
+import logging
+
 from server.DbController import get_db
 from shared import DTOs
 import time
 import traceback
 from pydantic import ValidationError
+
+logger = logging.getLogger(__name__)
 
 class MessageService:
     def get_key_by_username(self, usernames: DTOs.KeyTransferDTO):
@@ -16,11 +20,12 @@ class MessageService:
             cursor.execute(query, list(usernames.key_list.keys()))
             result = cursor.fetchall()
             if result is not None:
+                logger.info("Key returned successfully")
                 return {res['username'] : res['public_key'] for res in result}
             return {}
         except Exception as e:
             error_details = traceback.format_exc()
-            print("Error has happened:", error_details)
+            logging.error(f"Error has happened: {error_details}")
             return {}
 
     def save_message(self, sender_uid: int, valid_messages: list[DTOs.MessageDTO]):
@@ -51,9 +56,10 @@ class MessageService:
                 )
                 result_dict[receiver_name] = True
             db.commit()
+            logger.info("Message successfully saved")
             return result_dict
         except Exception as e:
-            print("Database error:", e)
+            logger.error(f"Database error: {e}")
             return None
 
     def get_messages_list(self, receiver_uid: int):
@@ -71,15 +77,19 @@ class MessageService:
 
             messages = cursor.fetchall()
             try:
-                return [DTOs.MessageListElementDTO(**m) for m in messages]
+                to_return = [DTOs.MessageListElementDTO(**m) for m in messages]
+                logger.info("Successfully got message list")
+                return to_return
             except ValidationError:
+                logger.error("Validation error")
                 return []
         except Exception as e:
-            print("Database error:", e)
+            logger.error(f"Database error: {e}")
             return []
 
     def get_the_message(self, receiver_username: str, message_id: int):
         if not self.is_user_receiver_of_message(receiver_username, message_id):
+            logger.info("User is not the owner of requested message")
             return False
 
         db = get_db()
@@ -111,9 +121,10 @@ class MessageService:
                 attachments = [((a['name'], a['content']), a['key'], a['hash']) for a in attachment_results],
                 date_sent = message_results['date_sent']
             )
+            logger.info("Successfully retrieved the message")
             return dto
         except Exception as e:
-            print("Database error:", e)
+            logger.error(f"Database error: {e}")
             return False
 
     def is_user_receiver_of_message(self, username: str, message_id: int) -> bool:
@@ -129,7 +140,7 @@ class MessageService:
             result = cursor.fetchone()
             return result is not None and result['username'] == username
         except Exception as e:
-            print("Database error:", e)
+            logger.error(f"Database error: {e}")
             return False
 
     def mark_read(self, message_id: int):
@@ -142,9 +153,10 @@ class MessageService:
                 "WHERE message_id = ?", (message_id,)
             )
             db.commit()
+            logger.info("Successfully marked message as read")
             return True
         except Exception as e:
-            print("Database error:", e)
+            logger.error(f"Database error: {e}")
             return False
 
     def delete_message(self, message_id):
@@ -158,9 +170,10 @@ class MessageService:
                 "DELETE FROM attachments WHERE message_id = ?", (message_id,)
             )
             db.commit()
+            logger.info("Successfully deleted message")
             return True
         except Exception as e:
-            print("Database error:", e)
+            logger.error(f"Database error: {e}")
             return False
         
 message_service = MessageService()

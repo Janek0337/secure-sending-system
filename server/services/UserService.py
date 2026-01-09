@@ -1,3 +1,4 @@
+import logging
 from http import HTTPStatus
 
 from shared import DTOs
@@ -7,6 +8,8 @@ from server.DbController import get_db
 import shared.utils as utils
 from shared.TOTP_manager import totp_manager
 import re
+
+logger = logging.getLogger(__name__)
 
 class UserService:
     def __init__(self):
@@ -19,7 +22,7 @@ class UserService:
             cursor.execute("SELECT user_id FROM app_users WHERE username = ?;", (username,))
             return cursor.fetchone() is not None
         except Exception as e:
-            print("Database error:", e)
+            logger.error(f"Database error: {e}")
             return False
 
     def is_email_in_use(self, email: str) -> bool:
@@ -63,9 +66,10 @@ class UserService:
                 (reg_dto.username, reg_dto.password, reg_dto.email, reg_dto.public_key, encrypted_secret)
             )
             db.commit()
+            logger.info(f"Successfully registered user {reg_dto.username}")
             return secret
         except Exception as e:
-            print("Database error:", e)
+            logger.error(f"Database error: {e}")
             return HTTPStatus.INTERNAL_SERVER_ERROR
     
     def verify_login(self, login_dto: DTOs.LoginDTO) -> bool | int:
@@ -81,13 +85,14 @@ class UserService:
             try:
                 self.phash.verify(user['password'], login_dto.password)
             except VerifyMismatchError as e:
-                print("Verify error:", e)
+                logger.error(f"Verification error: {e}")
                 return False
 
+            logger.info("Successfully verified login")
             return user['user_id']
 
         except Exception as e:
-            print("Database error:", e)
+            logger.error(f"Database error: {e}")
             return False
 
     def get_secret(self, user_id: int):
@@ -103,10 +108,10 @@ class UserService:
             return totp_manager.decrypt_secret(user['secret'])
 
         except ValueError as e:
-            print("Decryption error, likely MASTER_KEY mismatch:", e)
+            logger.error(f"Decryption error, likely MASTER_KEY mismatch: {e}")
             return None
         except Exception as e:
-            print("Database error:", e)
+            logger.error(f"Database error: {e}")
             return None
     
 user_service = UserService()

@@ -1,5 +1,8 @@
 import sqlite3
 from flask import g
+import logging
+
+logger = logging.getLogger(__name__)
 
 DATABASE = "database.db"
 
@@ -44,9 +47,10 @@ def prepare_database():
             """
 
             cursor.executescript(setup_command)
+            logger.info("Successfully set up database")
 
     except sqlite3.OperationalError as e:
-        print('Failed to conenct to databse:', e)
+        logger.error(f'Failed to conenct to databse: {e}')
 
 def dict_factory(cursor, row):
     d = {}

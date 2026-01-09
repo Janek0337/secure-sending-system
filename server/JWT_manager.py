@@ -5,6 +5,9 @@ from dotenv import load_dotenv
 import os
 import json
 import hmac
+import logging
+
+logger = logging.getLogger(__name__)
 
 class JWT_manager:
     def __init__(self):
@@ -16,6 +19,7 @@ class JWT_manager:
         load_dotenv()
         self.secret = os.getenv('JWT_SECRET')
         if self.secret is None:
+            logger.error("JWT_SECRET is not set")
             raise RuntimeError("Could not get JWT secret from .env !")
 
     def safe_base64_encode(self, data):
@@ -56,29 +60,30 @@ class JWT_manager:
         try:
             header, payload, signature = token.split('.')
         except Exception as e:
-            print("Invalid token structure:", e)
+            logger.error(f"Invalid token structure: {e}")
             return None
 
         intended_signature = self.make_signature(payload.encode("utf-8")).decode("utf-8")
         if not hmac.compare_digest(signature, intended_signature):
-            print("Invalid signature")
+            logger.error(f"Invalid token structure")
             return None
 
         if header.encode("utf-8") != self.header64:
-            print("Incorrect header")
+            logger.error(f"Invalid token structure")
             return None
 
         try:
             payload_dict = json.loads(self.safe_base64_decode(payload).decode("utf-8"))
 
             if int(time.time()) > payload_dict.get("exp", 0):
-                print("Expired token")
+                logger.info("Token expired")
                 return None
 
             if payload_dict.get("verified") is False and intended_verify is True:
                 return None
 
+            logger.info("Token verified successfully")
             return {'username': payload_dict['username'], 'uid': payload_dict['sub']}
         except (json.JSONDecodeError, TypeError, AttributeError) as e:
-            print("Invalid payload data:", e)
+            logger.error(f"Invalid payload data: {e}")
             return None
