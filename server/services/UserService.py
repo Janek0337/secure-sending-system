@@ -39,7 +39,7 @@ class UserService:
 
     def is_email_valid(self, email: str):
         if 3 <= len(email) <= 255:
-            regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$]'
+            regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
             if re.match(regex, email):
                 return True
         return False
@@ -62,6 +62,7 @@ class UserService:
                 "INSERT INTO app_users (username, password, email, public_key, secret) VALUES (?, ?, ?, ?, ?)",
                 (reg_dto.username, reg_dto.password, reg_dto.email, reg_dto.public_key, encrypted_secret)
             )
+            db.commit()
             return secret
         except Exception as e:
             print("Database error:", e)

@@ -11,9 +11,12 @@ import shared.utils as utils
 from shared.TOTP_manager import totp_manager
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+import logging
 
 app = Flask(__name__)
 jwt_manager = JWT_manager()
+
+logger = logging.getLogger(__name__)
 
 limiter = Limiter(
     get_remote_address,
@@ -42,11 +45,12 @@ def register():
 
         register_result = user_service.register_user(register_dto)
         if isinstance(register_result, HTTPStatus):
+            if register_result == HTTPStatus.BAD_REQUEST:
+                return jsonify("Invalid input"), HTTPStatus.BAD_REQUEST
+            elif register_result == HTTPStatus.CONFLICT:
+                return jsonify("Either username or email already in use"), HTTPStatus.CONFLICT
+        else:
             return jsonify({"secret": register_result}), HTTPStatus.CREATED
-        elif register_result == HTTPStatus.BAD_REQUEST:
-            return jsonify("Invalid input"), HTTPStatus.BAD_REQUEST
-        elif register_result == HTTPStatus.CONFLICT:
-            return jsonify("Either username or email already in use"), HTTPStatus.CONFLICT
 
     except ValidationError:
         return jsonify("Input error"), HTTPStatus.BAD_REQUEST

@@ -1,8 +1,8 @@
 import sqlite3
 from flask import g
-from pathlib import Path
 
-DATABASE = Path(__file__).parent / 'database.db'
+DATABASE = "database.db"
+
 def prepare_database():
     try:
         with sqlite3.connect(DATABASE) as conn:
