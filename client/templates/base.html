@@ -2,12 +2,12 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>{% block title %}Moja Aplikacja{% endblock %}</title>
+    <title>{% block title %}Secure Sending System{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 
-    <div class="messages">
+    <div>
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
@@ -17,7 +17,7 @@
         {% endwith %}
     </div>
 
-    <div class="content">
+    <div>
         {% block content %}{% endblock %}
     </div>
 

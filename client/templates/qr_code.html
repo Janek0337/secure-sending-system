@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+
+{% block title %}qr code{% endblock %}
+
+{% block content %}
+<h1>Scan your QR code to the TOTP application for '{{ username }}' account</h1>
+<img src="data:image/png;base64,{{ qr_code_data }}" alt="Scan me">
+<form action="{{url_for('login')}}" method="GET">
+  <input type="submit" value="Done, continue">
+</form>
+{% endblock %}

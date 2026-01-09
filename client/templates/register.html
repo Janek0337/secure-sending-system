@@ -21,7 +21,7 @@
     </form>
 <h4>Password MUST contain:</h4>
 <ul>
-    <li>at least 16 characters</li>
+    <li>between 16 and 50 characters</li>
     <li>small letter</li>
     <li>big letter</li>
     <li>number</li>
@@ -30,7 +30,10 @@
 <h4>Username must:</h4>
 <ul>
     <li>be between 3 and 50 characters long</li>
-    <li>not contain any space or other white characters</li>
-    <li>not contain any comma symbol</li>
+    <li>contain only letters, numbers and underscore symbol ("_")</li>
+</ul>
+<h4>Email must:</h4>
+<ul>
+    <li>be between 3 and 255 characters long</li>
 </ul>
 {% endblock %}

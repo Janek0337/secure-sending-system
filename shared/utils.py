@@ -2,7 +2,7 @@ from http import HTTPStatus
 import shared.DTOs as DTOs
 
 def is_password_secure(password: str) -> bool:
-    if len(password) < 16:
+    if not (16 < len(password) < 50):
         return False
 
     hasLower = False
@@ -46,5 +46,4 @@ def verify_username(username: str):
     if not (3 <= len(username) <= 50):
         return False
 
-    forbidden_chars = {' ', '\n', '\t', '\r', ','}
-    return not any(char in forbidden_chars for char in username)
+    return all(c.isalnum() or c == '_' for c in username)

@@ -6,6 +6,8 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "flask>=3.1.2",
+    "pillow>=12.1.0",
     "pycryptodome>=3.23.0",
+    "qrcode>=8.2",
     "requests>=2.32.5",
 ]

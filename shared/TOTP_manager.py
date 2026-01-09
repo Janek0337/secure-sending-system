@@ -1,48 +1,59 @@
 import time
 import os
-from dotenv import load_dotenv, set_key
+import io
 import secrets
 from shared.Ciphrer import ciphrer
 import base64
 from Crypto.Hash import HMAC, SHA256
 from math import floor
-from pathlib import Path
+from urllib.parse import quote
+import qrcode
 
 class TOTP_manager:
     def __init__(self):
         self.env_name = None
 
-    def _get_master_key(self):
+    def get_master_key(self):
         master_key = os.getenv('MASTER_KEY')
         if master_key is None:
             raise RuntimeError("Could not get MASTER KEY from environment. Ensure server/.env is loaded.")
         return master_key
 
-    def load_secret(self, username):
-        env_name_key = f"TOTP_SECRET_{username}"
-        load_dotenv(dotenv_path=Path(__file__).parent.parent / "client" / ".env")
-        env_name = os.getenv(env_name_key)
-        if env_name is None:
-            raise RuntimeError(f"Could not get {env_name_key} from .env !")
-        return env_name
-
     def generate_secret(self):
         return base64.b32encode(secrets.token_bytes(20)).decode('utf-8')
 
     def encrypt_secret(self, secret: str):
-        master_key = self._get_master_key()
+        master_key = self.get_master_key()
         encrypted_bytes, _ = ciphrer.encrypt_data(secret.encode("utf-8"), base64.b64decode(master_key))
         return base64.b64encode(encrypted_bytes).decode("utf-8")
 
     def decrypt_secret(self, encrypted: str):
-        master_key = self._get_master_key()
+        master_key = self.get_master_key()
         decoded_encrypted_bytes = base64.b64decode(encrypted)
         decrypted_bytes = ciphrer.decrypt_data(decoded_encrypted_bytes, base64.b64decode(master_key))
         return decrypted_bytes.decode("utf-8")
 
-    def save_totp_secret_to_env(self, secret, name):
-        env_path = Path(__file__).parent.parent / "client" / ".env"
-        set_key(env_path, f"TOTP_SECRET_{name}", secret)
+    def generate_qr_code(self, secret_base32, username):
+        issuer="Secure Sending System"
+        label = f"{issuer}:{username}"
+
+        uri = (
+            f"otpauth://totp/{quote(label)}?"
+            f"secret={secret_base32}&"
+            f"issuer={quote(issuer)}&"
+            f"algorithm=SHA256&"
+            f"digits=6&"
+            f"period=30"
+        )
+        qr = qrcode.QRCode(box_size=10, border=4)
+        qr.add_data(uri)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+
+        buffered = io.BytesIO()
+        img.save(buffered, format="PNG")
+        return base64.b64encode(buffered.getvalue()).decode("utf-8")
+
 
     # also allows for a next time window's code
     def count_totp_code(self, secret) -> list[str]:

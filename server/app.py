@@ -9,9 +9,21 @@ from services.MessageService import message_service
 import base64
 import shared.utils as utils
 from shared.TOTP_manager import totp_manager
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
 jwt_manager = JWT_manager()
+
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["1 per second"]
+)
+
+@app.errorhandler(HTTPStatus.TOO_MANY_REQUESTS)
+def rate_limit_handler(e):
+    return jsonify({"limit": e.description()}), HTTPStatus.TOO_MANY_REQUESTS
 
 def encode_bytes_to_b64(b):
     return base64.b64encode(b).decode('utf-8')
@@ -20,6 +32,7 @@ def decode_bytes_from_b64(b):
     return base64.b64decode(b)
 
 @app.route('/register', methods=['POST'])
+@limiter.limit("1 per minute", override_defaults=True)
 def register():
     try:
         data = request.get_json(silent=True)
@@ -27,19 +40,19 @@ def register():
             return jsonify("Input error"), HTTPStatus.BAD_REQUEST
         register_dto = DTOs.RegisterDTO(**data)
 
-        if user_service.user_exists(register_dto.username):
-            return jsonify("User already exists"), HTTPStatus.CONFLICT
-
         register_result = user_service.register_user(register_dto)
-        if register_result is not False:
+        if isinstance(register_result, HTTPStatus):
             return jsonify({"secret": register_result}), HTTPStatus.CREATED
-        else:
-            return jsonify("Input error"), HTTPStatus.BAD_REQUEST
+        elif register_result == HTTPStatus.BAD_REQUEST:
+            return jsonify("Invalid input"), HTTPStatus.BAD_REQUEST
+        elif register_result == HTTPStatus.CONFLICT:
+            return jsonify("Either username or email already in use"), HTTPStatus.CONFLICT
 
     except ValidationError:
         return jsonify("Input error"), HTTPStatus.BAD_REQUEST
 
 @app.route('/login', methods=['POST'])
+@limiter.limit("1 per second", override_defaults=True)
 def login():
     try:
         data = request.get_json(silent=True)

@@ -43,36 +43,27 @@ def login():
         password=password
     )
 
-    try:
-        my_secret = totp_manager.load_secret(username)
-        print(f"My code is: {totp_manager.count_totp_code(my_secret)}")
-    except RuntimeError:
-        print("You have no secret saved on this instance.")
+    res = requests.post(url=f"{server_address}/login", json=dto.model_dump())
+    my_res = make_response(redirect(url_for('verify_totp')))
+    if res.status_code == HTTPStatus.OK:
+        print("Successful login")
+        token = res.json().get('access-token')
+        if token:
+            my_res.set_cookie(
+                'access-token',
+                token,
+                httponly=True,
+                samesite='Lax'
+            )
+    elif res.status_code == HTTPStatus.TOO_MANY_REQUESTS:
+        flash(f"Too many requests: {res.json().get('limit')}", "error")
+    else:
+        print("Unsuccessful login")
 
-
-    try:
-        res = requests.post(url=server_address+"/login", json=dto.model_dump())
-        my_res = make_response(redirect(url_for('verify_totp')))
-        if res.status_code == HTTPStatus.OK:
-            print("Successful login")
-            token = res.json().get('access-token')
-            if token:
-                my_res.set_cookie(
-                    'access-token',
-                    token,
-                    httponly=True,
-                    samesite='Lax'
-                )
-        else:
-            print("Unsuccessful login")
-
-        if not key_manager.load_key(username, password):
-            flash("Missing or faulty key")
-            return redirect(url_for('register'))
-        return my_res
-
-    except requests.exceptions.RequestException as e:
-        print("Exception:", e)
+    if not key_manager.load_key(username, password):
+        flash("Missing or faulty key")
+        return redirect(url_for('register'))
+    return my_res
 
 @app.route("/verify-totp", methods=["GET", "POST"])
 def verify_totp():
@@ -102,6 +93,8 @@ def verify_totp():
             flash("Server error", "error"), HTTPStatus.INTERNAL_SERVER_ERROR
     elif res.status_code == HTTPStatus.FORBIDDEN:
         flash("Wrong code. Try again?", "error")
+    elif res.status_code == HTTPStatus.TOO_MANY_REQUESTS:
+        flash(f"Too many requests: {res.json().get('limit')}", "error")
     else:
         flash("Error", "error")
 
@@ -131,17 +124,23 @@ def register():
 
     key_manager.create_key()
     register_dto = DTOs.RegisterDTO(username=username, password=password, email=email, public_key=key_manager.get_pub_key_text())
-    res = requests.post(url=server_address + "/register", json=register_dto.model_dump())
+    res = requests.post(url=f"{server_address}/register", json=register_dto.model_dump())
     if res.status_code == HTTPStatus.CREATED:
-        flash(f"Successful registration! You can now log in as \"{username}\"\n"
-              f"Your secret was saved to /client/.env", "success")
-        key_manager.save_key(username, password)
         data = res.json()
-        totp_manager.save_totp_secret_to_env(data['secret'], username)
+        key_manager.save_key(username, password)
+        img_data_base64 = totp_manager.generate_qr_code(data['secret'], username)
+        flash(f"Success. Now you can log in as \"{username}\"")
 
-        return redirect(url_for('login'))
+        return render_template('qr_code.html', qr_code_data=img_data_base64, username=username)
+
     elif res.status_code == HTTPStatus.CONFLICT:
-        flash("User with such username already exists. Did not register.", "error")
+        flash("Either username or email address already in use. Did not register.", "error")
+        return redirect(url_for('register'))
+    elif res.status_code == HTTPStatus.BAD_REQUEST:
+        flash("Credentials do not meet requirements. Did not register.", "error")
+        return redirect(url_for('register'))
+    elif res.status_code == HTTPStatus.TOO_MANY_REQUESTS:
+        flash(f"Too many requests: {res.json().get('limit')}", "error")
         return redirect(url_for('register'))
     else:
         flash("Error has happened. Did not register.", "error")
@@ -163,7 +162,11 @@ def message():
     content = request.form['message']
 
     key_res = requests.post(url = server_address + "/get-key", json=DTOs.KeyTransferDTO(
-        key_list={r : None for r in receivers}).model_dump())
+        key_list={r : None for r in receivers}).model_dump()
+                )
+    if key_res.status_code == HTTPStatus.TOO_MANY_REQUESTS:
+        flash(f"Too many requests: {key_res.json().get('limit')}", "error")
+        return redirect(url_for('message'))
     try:
         data = key_res.json()
         keys = DTOs.KeyTransferDTO(**data)
@@ -217,6 +220,9 @@ def message():
     if res.status_code == HTTPStatus.INTERNAL_SERVER_ERROR:
         flash("Server error. Please try again.", "error")
         return redirect(url_for('message'))
+    elif res.status_code == HTTPStatus.TOO_MANY_REQUESTS:
+        flash(f"Too many requests: {res.json().get('limit')}", "error")
+        return redirect(url_for('message'))
 
     try:
         result_dict = res.json()
@@ -247,6 +253,9 @@ def menu():
             owner = response.get('owner', 'Unknown')
         except Exception as e:
             flash("Error has happened!", "error")
+    elif res.status_code == HTTPStatus.TOO_MANY_REQUESTS:
+        flash(f"Too many requests: {res.json().get('limit')}", "error")
+        return redirect(url_for('menu'))
     else:
         flash("Couldn't access your messages", "error")
 
@@ -262,6 +271,9 @@ def get_the_message(message_id):
     res = requests.get(url=f"{server_address}/get-the-message/{message_id}", cookies=cookies)
     if res.status_code == HTTPStatus.FORBIDDEN:
         flash("Couldn't access your message.", "error")
+        return redirect(url_for('menu'))
+    elif res.status_code == HTTPStatus.TOO_MANY_REQUESTS:
+        flash(f"Too many requests: {res.json().get('limit')}", "error")
         return redirect(url_for('menu'))
 
     dto = DTOs.GetMessageDTO(**res.json())
@@ -303,6 +315,9 @@ def get_the_message(message_id):
     username = dto.sender
     res = requests.post(url=f"{server_address}/get-key", json=DTOs.KeyTransferDTO(
         key_list={username : None}).model_dump())
+    if res.status_code == HTTPStatus.TOO_MANY_REQUESTS:
+        flash(f"Too many requests: {res.json().get('limit')}", "error")
+        return redirect(url_for('menu'))
 
     try:
         data = res.json()
@@ -341,6 +356,9 @@ def mark_read(message_id):
     elif res.status_code == HTTPStatus.OK:
         flash("Message marked as read", "success")
         return redirect(url_for('menu'))
+    elif res.status_code == HTTPStatus.TOO_MANY_REQUESTS:
+        flash(f"Too many requests: {res.json().get('limit')}", "error")
+        return redirect(url_for('menu'))
     else:
         flash("Error. Did not apply changes.")
         return redirect(url_for('menu'))
@@ -356,6 +374,9 @@ def delete_message(message_id):
     elif res.status_code == HTTPStatus.NO_CONTENT:
         flash("Message deleted.", "success")
         return redirect(url_for('menu'))
+    elif res.status_code == HTTPStatus.TOO_MANY_REQUESTS:
+        flash(f"Too many requests: {res.json().get('limit')}", "error")
+        return redirect(url_for('menu'))
     else:
         flash(f"Error. Did not delete. Status code: {res.status_code}")
         return redirect(url_for('menu'))
@@ -365,6 +386,9 @@ def get_key():
     username = request.form.get("sender")
     res = requests.post(url=f"{server_address}/get-key", json=DTOs.KeyTransferDTO(
         key_list={username, None}).model_dump())
+    if res.status_code == HTTPStatus.TOO_MANY_REQUESTS:
+        flash(f"Too many requests: {res.json().get('limit')}", "error")
+        return redirect(url_for('menu'))
     try:
         data = res.json()
         dto = DTOs.KeyTransferDTO(**data)
