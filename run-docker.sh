@@ -27,5 +27,5 @@ fi
 
 docker run -p 3045:3045 \
   -v $(pwd)/server/database.db:/app/server/database.db \
-  -v $(pwd)/server/.env:/app/server/.env
+  -v $(pwd)/server/.env:/app/server/.env \
   secure-sending-system

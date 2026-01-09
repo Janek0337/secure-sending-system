@@ -482,6 +482,7 @@ dependencies = [
     { name = "pycryptodome" },
     { name = "pydantic" },
     { name = "python-dotenv" },
+    { name = "qrcode" },
 ]
 
 [package.metadata]
@@ -492,6 +493,7 @@ requires-dist = [
     { name = "pycryptodome", specifier = ">=3.23.0" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
+    { name = "qrcode", specifier = ">=8.2" },
 ]
 
 [[package]]
