@@ -13,7 +13,6 @@ This instructions will allow you to deploy application's server with docker at p
    - clone repository:
    `git clone https://github.com/Janek0337/secure-sending-system`
    - Go to repo's directory: `cd secure-sending-system`
-   - install dependencies: `uv sync --package server`
    - rename file `server/.env.example` to `server/.env` and fill both keys for server to use (base64)
    - grant running access to the starting script: `sudo chmod +x ./run-docker.sh`
    - run the script: `./run-docker.sh`<br><br>

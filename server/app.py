@@ -13,10 +13,12 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import logging
 import secrets
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = secrets.token_hex(32)
 app.config['MAX_CONTENT_LENGTH'] = 35 * 1024 * 1024
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 
 logging.basicConfig(
     level=logging.INFO,
