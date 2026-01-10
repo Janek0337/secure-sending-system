@@ -32,7 +32,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-if len(sys.argv) != 2:
+if len(sys.argv) > 2:
     logger.error("Invalid args count")
     exit(1)
 
@@ -53,10 +53,12 @@ address = f"{"127.0.0.1:5000" if not validate_address(new_address) else new_addr
 def get_protocol(address):
     try:
         url = f"https://{address}"
-        res = requests.get(f"{url}/hello", verify=False)
-        return url
-    except Exception:
-        return f"http://{address}"
+        res = requests.get(f"{url}/hello", verify=False, timeout=2)
+        if res.status_code == HTTPStatus.OK:
+            return url
+    except requests.exceptions.RequestException:
+        pass
+    return f"http://{address}"
 
 server_address = get_protocol(address)
 logger.info(f"Connecting to server at {server_address}")

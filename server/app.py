@@ -19,7 +19,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = secrets.token_hex(32)
 app.config['MAX_CONTENT_LENGTH'] = 35 * 1024 * 1024
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
-
+DbController.prepare_database()
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(name)s at line %(lineno)d: %(message)s',
@@ -67,6 +67,9 @@ def register():
             elif register_result == HTTPStatus.CONFLICT:
                 logger.info("Credentials already in use")
                 return jsonify("Either username or email already in use"), HTTPStatus.CONFLICT
+            elif register_result == HTTPStatus.INTERNAL_SERVER_ERROR:
+                logger.error("Internal server error during registration")
+                return jsonify("Internal server error"), HTTPStatus.INTERNAL_SERVER_ERROR
         else:
             return jsonify({"secret": register_result}), HTTPStatus.CREATED
 
@@ -225,5 +228,4 @@ def hello():
     return jsonify("Hello!"), HTTPStatus.OK
 
 if __name__ == '__main__':
-    DbController.prepare_database()
     app.run(debug=True, port=5000, host='0.0.0.0')
