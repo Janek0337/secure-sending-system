@@ -37,8 +37,8 @@ class UserService:
             return result is not None
 
         except Exception as e:
-            print("Database error:", e)
-            return True
+            logger.error(f"Database error: {e}")
+            return False
 
     def is_email_valid(self, email: str):
         if 3 <= len(email) <= 255:
