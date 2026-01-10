@@ -6,5 +6,7 @@ COPY server/pyproject.toml ./server/
 RUN uv sync --frozen --no-install-project --package server
 COPY shared/ ./shared
 COPY server/ ./server
+ENV FLASK_ENV=production
+ENV PYTHONUNBUFFERED=1
 EXPOSE 5000
-CMD ["uv", "run", "python3", "-m", "server.app"]
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "server.app:app"]

@@ -55,6 +55,7 @@ class UserService:
             return HTTPStatus.CONFLICT
 
         reg_dto.password = self.phash.hash(reg_dto.password)
+        reg_dto.email = totp_manager.encrypt_secret(reg_dto.email)
         secret = totp_manager.generate_secret()
         encrypted_secret = totp_manager.encrypt_secret(secret)
 

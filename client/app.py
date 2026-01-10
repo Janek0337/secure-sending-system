@@ -16,8 +16,11 @@ from shared.utils import is_password_secure
 import shared.utils as utils
 from shared.Ciphrer import ciphrer
 import logging
+import secrets
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = secrets.token_hex(32)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(name)s at line %(lineno)d: %(message)s',
@@ -263,6 +266,9 @@ def message():
         return redirect(url_for('message'))
     elif res.status_code == HTTPStatus.TOO_MANY_REQUESTS:
         flash(f"Too many requests: {res.json().get('limit')}", "error")
+        return redirect(url_for('message'))
+    elif res.status_code == HTTPStatus.CONTENT_TOO_LARGE:
+        flash("Content too large", "error")
         return redirect(url_for('message'))
 
     try:

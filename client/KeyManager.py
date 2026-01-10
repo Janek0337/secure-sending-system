@@ -36,14 +36,14 @@ class KeyManager:
             if self.key is None:
                 return False
         private_pem = self.get_priv_key_text(password)
-        with open(f"keys/private_key_{username}.pem", "wb") as f:
+        with open(f"client/keys/private_key_{username}.pem", "wb") as f:
             f.write(private_pem.encode("utf-8"))
 
         return True
 
     def load_key(self, username, password):
         try:
-            with open(f"keys/private_key_{username}.pem", "rb") as f:
+            with open(f"client/keys/private_key_{username}.pem", "rb") as f:
                 key_data = f.read()
             self.key = RSA.import_key(key_data, passphrase=password)
             return True

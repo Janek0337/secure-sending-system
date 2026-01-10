@@ -12,8 +12,11 @@ from shared.TOTP_manager import totp_manager
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import logging
+import secrets
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = secrets.token_hex(32)
+app.config['MAX_CONTENT_LENGTH'] = 35 * 1024 * 1024
 
 logging.basicConfig(
     level=logging.INFO,
