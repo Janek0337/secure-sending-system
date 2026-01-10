@@ -52,11 +52,9 @@ address = f"{"127.0.0.1:5000" if not validate_address(new_address) else new_addr
 
 def get_protocol(address):
     try:
-        url = f"https://{server_address}"
+        url = f"https://{address}"
         res = requests.get(f"{url}/hello", verify=False)
-        if res.status_code == HTTPStatus.OK:
-            return url
-        raise Exception
+        return url
     except Exception:
         return f"http://{address}"
 
@@ -87,7 +85,7 @@ def login():
         password=password
     )
 
-    res = requests.post(url=f"{server_address}/login", json=dto.model_dump())
+    res = requests.post(url=f"{server_address}/login", json=dto.model_dump(), verify=False)
     my_res = make_response(redirect(url_for('verify_totp')))
     if res.status_code == HTTPStatus.OK:
         print("Successful login")
@@ -121,7 +119,7 @@ def verify_totp():
     cookies = {'access-token': token}
 
     code = request.form.get('totp')
-    res = requests.post(url=f"{server_address}/verify-totp", json={"code" : code}, cookies=cookies)
+    res = requests.post(url=f"{server_address}/verify-totp", json={"code" : code}, cookies=cookies, verify=False)
     if res.status_code == HTTPStatus.OK:
         token = res.json().get('token')
         if token:
@@ -168,7 +166,7 @@ def register():
 
     key_manager.create_key()
     register_dto = DTOs.RegisterDTO(username=username, password=password, email=email, public_key=key_manager.get_pub_key_text())
-    res = requests.post(url=f"{server_address}/register", json=register_dto.model_dump())
+    res = requests.post(url=f"{server_address}/register", json=register_dto.model_dump(), verify=False)
     if res.status_code == HTTPStatus.CREATED:
         data = res.json()
         key_manager.save_key(username, password)
@@ -206,7 +204,7 @@ def message():
     content = request.form['message']
 
     key_res = requests.post(url = server_address + "/get-key", json=DTOs.KeyTransferDTO(
-        key_list={r : None for r in receivers}).model_dump()
+        key_list={r : None for r in receivers}).model_dump(), verify=False
                 )
     if key_res.status_code == HTTPStatus.TOO_MANY_REQUESTS:
         flash(f"Too many requests: {key_res.json().get('limit')}", "error")
@@ -260,7 +258,8 @@ def message():
         flash("No messages were sent.", "error")
         return redirect(url_for('message'))
 
-    res = requests.post(url=f"{server_address}/message", json=DTOs.MessageListDTO(message_list=list_of_messages).model_dump(), cookies=cookies)
+    res = requests.post(url=f"{server_address}/message", json=DTOs.MessageListDTO(message_list=list_of_messages).model_dump(),
+                        cookies=cookies, verify=False)
     if res.status_code == HTTPStatus.INTERNAL_SERVER_ERROR:
         flash("Server error. Please try again.", "error")
         return redirect(url_for('message'))
@@ -292,7 +291,7 @@ def menu():
     owner = "Unknown"
     token = request.cookies.get('access-token')
     cookies = {'access-token': token}
-    res = requests.post(url=server_address + "/get-messages", cookies=cookies)
+    res = requests.post(url=server_address + "/get-messages", cookies=cookies, verify=False)
     if res.status_code == HTTPStatus.OK:
         try:
             response = res.json()
@@ -315,7 +314,7 @@ def get_the_message(message_id):
     if key_manager.key is None:
         flash("Please log in again.", "error")
         return redirect(url_for('login'))
-    res = requests.get(url=f"{server_address}/get-the-message/{message_id}", cookies=cookies)
+    res = requests.get(url=f"{server_address}/get-the-message/{message_id}", cookies=cookies, verify=False)
     if res.status_code == HTTPStatus.FORBIDDEN:
         flash("Couldn't access your message.", "error")
         return redirect(url_for('menu'))
@@ -361,7 +360,7 @@ def get_the_message(message_id):
     verified = False
     username = dto.sender
     res = requests.post(url=f"{server_address}/get-key", json=DTOs.KeyTransferDTO(
-        key_list={username : None}).model_dump())
+        key_list={username : None}).model_dump(), verify=False)
     if res.status_code == HTTPStatus.TOO_MANY_REQUESTS:
         flash(f"Too many requests: {res.json().get('limit')}", "error")
         return redirect(url_for('menu'))
@@ -396,7 +395,7 @@ def get_the_message(message_id):
 def mark_read(message_id):
     token = request.cookies.get('access-token')
     cookies = {'access-token': token}
-    res = requests.post(url=f"{server_address}/mark-read/{message_id}", cookies=cookies)
+    res = requests.post(url=f"{server_address}/mark-read/{message_id}", cookies=cookies, verify=False)
     if res.status_code == HTTPStatus.FORBIDDEN:
         flash("Couldn't apply changes. Please log in again.", "error")
         return redirect(url_for('login'))
@@ -414,7 +413,7 @@ def mark_read(message_id):
 def delete_message(message_id):
     token = request.cookies.get('access-token')
     cookies = {'access-token': token}
-    res = requests.delete(url=f"{server_address}/delete-message/{message_id}", cookies=cookies)
+    res = requests.delete(url=f"{server_address}/delete-message/{message_id}", cookies=cookies, verify=False)
     if res.status_code == HTTPStatus.FORBIDDEN:
         flash("Couldn't apply changes. Please log in again.", "error")
         return redirect(url_for('login'))
@@ -432,7 +431,7 @@ def delete_message(message_id):
 def get_key():
     username = request.form.get("sender")
     res = requests.post(url=f"{server_address}/get-key", json=DTOs.KeyTransferDTO(
-        key_list={username: None}).model_dump())
+        key_list={username: None}).model_dump(), verify=False)
     if res.status_code == HTTPStatus.TOO_MANY_REQUESTS:
         flash(f"Too many requests: {res.json().get('limit')}", "error")
         return redirect(url_for('menu'))

@@ -51,7 +51,7 @@ class UserService:
         if not (utils.is_password_secure(reg_dto.password) and utils.verify_username(reg_dto.username)
                 and self.is_email_valid(reg_dto.email)):
             return HTTPStatus.BAD_REQUEST
-        if self.is_email_in_use(reg_dto.email) or user_service.user_exists(reg_dto.username):
+        if self.is_email_in_use(reg_dto.email) or self.user_exists(reg_dto.username):
             return HTTPStatus.CONFLICT
 
         reg_dto.password = self.phash.hash(reg_dto.password)
