@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 @app.errorhandler(HTTPStatus.TOO_MANY_REQUESTS)
 def rate_limit_handler(e):
     logger.info("Rate limit exceeded")
-    return jsonify({"limit": e.description()}), HTTPStatus.TOO_MANY_REQUESTS
+    return jsonify({"limit": "yes"}), HTTPStatus.TOO_MANY_REQUESTS
 
 def encode_bytes_to_b64(b):
     return base64.b64encode(b).decode('utf-8')
