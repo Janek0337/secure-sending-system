@@ -1,0 +1,1 @@
+uv run python -m client.app $args[0]

@@ -3,9 +3,10 @@ import requests
 from pydantic import ValidationError
 
 from shared import DTOs
-import KeyManager
+import client.KeyManager as KeyManager
 from http import HTTPStatus
-import os
+import sys
+import ipaddress
 import base64
 from datetime import datetime
 
@@ -14,10 +15,50 @@ from shared.TOTP_manager import totp_manager
 from shared.utils import is_password_secure
 import shared.utils as utils
 from shared.Ciphrer import ciphrer
+import logging
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
-server_address = "http://79.76.42.9:5000"
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(name)s at line %(lineno)d: %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    handlers=[
+        logging.FileHandler("app.log"),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+if len(sys.argv) != 2:
+    logger.error("Invalid args count")
+    exit(1)
+
+def validate_address(address):
+    try:
+        host, port = address.split(":")
+        ipaddress.ip_address(host)
+
+        return 1 <= int(port) <= 65535
+    except ValueError:
+        logger.error(f"{address} is not a valid address")
+        return False
+
+
+new_address = sys.argv[1]
+address = f"{"127.0.0.1:5000" if not validate_address(new_address) else new_address}"
+
+def get_protocol(address):
+    try:
+        url = f"https://{server_address}"
+        res = requests.get(f"{url}/hello", verify=False)
+        if res.status_code == HTTPStatus.OK:
+            return url
+        raise Exception
+    except Exception:
+        return f"http://{address}"
+
+server_address = get_protocol(address)
+logger.info(f"Connecting to server at {server_address}")
 key_manager = KeyManager.KeyManager()
 
 def encode_bytes_to_b64(b):
@@ -385,14 +426,14 @@ def delete_message(message_id):
 def get_key():
     username = request.form.get("sender")
     res = requests.post(url=f"{server_address}/get-key", json=DTOs.KeyTransferDTO(
-        key_list={username, None}).model_dump())
+        key_list={username: None}).model_dump())
     if res.status_code == HTTPStatus.TOO_MANY_REQUESTS:
         flash(f"Too many requests: {res.json().get('limit')}", "error")
         return redirect(url_for('menu'))
     try:
         data = res.json()
         dto = DTOs.KeyTransferDTO(**data)
-        key = dto[username]
+        key = dto.key_list[username]
 
         if key is None:
             flash("Error. Did not download key.")

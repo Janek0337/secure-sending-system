@@ -214,6 +214,11 @@ def delete_message(message_id):
 
     return jsonify("Success"), HTTPStatus.NO_CONTENT
 
+@app.route("/hello", methods=["GET"])
+@limiter.limit("1 per second")
+def hello():
+    return jsonify("Hello!"), HTTPStatus.OK
+
 if __name__ == '__main__':
     DbController.prepare_database()
     app.run(debug=True, port=5000, host='0.0.0.0')
