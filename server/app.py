@@ -112,7 +112,12 @@ def verify_totp():
     if data is None or 'code' not in data:
         return jsonify("Input error"), HTTPStatus.BAD_REQUEST
 
-    intended_code = totp_manager.count_totp_code(user_service.get_secret(token_data['uid']))
+    secret = user_service.get_secret(token_data['uid'])
+    if secret is None:
+        logger.error("Could not retrieve TOTP secret for user.")
+        return jsonify("Server error"), HTTPStatus.INTERNAL_SERVER_ERROR
+
+    intended_code = totp_manager.count_totp_code(secret)
     given_code = data['code']
 
     if given_code in intended_code:
