@@ -157,6 +157,7 @@ dependencies = [
     { name = "flask" },
     { name = "pillow" },
     { name = "pycryptodome" },
+    { name = "pydantic" },
     { name = "qrcode" },
     { name = "requests" },
 ]
@@ -166,6 +167,7 @@ requires-dist = [
     { name = "flask", specifier = ">=3.1.2" },
     { name = "pillow", specifier = ">=12.1.0" },
     { name = "pycryptodome", specifier = ">=3.23.0" },
+    { name = "pydantic", specifier = ">=2.12.5" },
     { name = "qrcode", specifier = ">=8.2" },
     { name = "requests", specifier = ">=2.32.5" },
 ]

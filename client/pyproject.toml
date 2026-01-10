@@ -8,6 +8,7 @@ dependencies = [
     "flask>=3.1.2",
     "pillow>=12.1.0",
     "pycryptodome>=3.23.0",
+    "pydantic>=2.12.5",
     "qrcode>=8.2",
     "requests>=2.32.5",
 ]
