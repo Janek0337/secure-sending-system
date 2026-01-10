@@ -1,9 +1,10 @@
 FROM python:3.12
-WORKDIR app
+WORKDIR /app
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 COPY pyproject.toml uv.lock ./
 COPY server/pyproject.toml ./server/
 RUN uv sync --frozen --no-install-project --package server
+ENV PATH="/app/.venv/bin:$PATH"
 COPY shared/ ./shared
 COPY server/ ./server
 ENV FLASK_ENV=production
