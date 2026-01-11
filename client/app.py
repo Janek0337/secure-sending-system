@@ -99,13 +99,16 @@ def login():
                 httponly=True,
                 samesite='Lax'
             )
+            logger.info("Successfull log in")
     elif res.status_code == HTTPStatus.TOO_MANY_REQUESTS:
         flash(f"Too many requests: {res.json().get('limit')}", "error")
+        logger.info("Too many requests")
     else:
-        print("Unsuccessful login")
+        logger.info("Unsuccessful login")
 
     if not key_manager.load_key(username, password):
         flash("Missing or faulty key")
+        logger.error(f"No or bad key for \'{username}\'")
         return redirect(url_for('register'))
     return my_res
 
@@ -135,12 +138,16 @@ def verify_totp():
             return my_res
         else:
             flash("Server error", "error"), HTTPStatus.INTERNAL_SERVER_ERROR
+            logger.error("Server error")
     elif res.status_code == HTTPStatus.FORBIDDEN:
         flash("Wrong code. Try again?", "error")
+        logger.info("Codes do not match")
     elif res.status_code == HTTPStatus.TOO_MANY_REQUESTS:
         flash(f"Too many requests: {res.json().get('limit')}", "error")
+        logger.info("Too many requests")
     else:
         flash("Error", "error")
+        logger.error("Unknown error")
 
     return redirect(url_for('verify_totp'))
 
@@ -187,6 +194,7 @@ def register():
         flash(f"Too many requests: {res.json().get('limit')}", "error")
         return redirect(url_for('register'))
     else:
+        logger.error(f"Error has happened. Status: {res.status_code}, content: {res.text}")
         flash("Error has happened. Did not register.", "error")
         return redirect(url_for('register'))
 

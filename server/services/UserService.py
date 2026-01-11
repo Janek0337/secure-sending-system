@@ -48,9 +48,16 @@ class UserService:
         return False
 
     def register_user(self, reg_dto: DTOs.RegisterDTO):
-        if not (utils.is_password_secure(reg_dto.password) and utils.verify_username(reg_dto.username)
-                and self.is_email_valid(reg_dto.email)):
+        if not utils.is_password_secure(reg_dto.password):
+            logger.info(f"Password is not secure for user {reg_dto.username}")
             return HTTPStatus.BAD_REQUEST
+        if not utils.verify_username(reg_dto.username):
+            logger.info(f"Username not valid for user {reg_dto.username}")
+            return HTTPStatus.BAD_REQUEST
+        if not self.is_email_valid(reg_dto.email):
+            logger.info(f"Email not valid for user {reg_dto.username}")
+            return HTTPStatus.BAD_REQUEST
+
         if self.is_email_in_use(reg_dto.email) or self.user_exists(reg_dto.username):
             return HTTPStatus.CONFLICT
 
