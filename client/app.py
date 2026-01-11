@@ -43,7 +43,6 @@ def validate_address(address):
 
         return 1 <= int(port) <= 65535
     except ValueError:
-        logger.error(f"{address} is not a valid address")
         return False
 
 
