@@ -1,6 +1,7 @@
 # Secure Sending System
 This is one of the systems that will allow you to send securely encrpted mesages and attachments between you and your friends.
 The project's motto is "Mind the hooks, not the looks".
+Application does not guarantee working properly with non UTF-8 characters. Use them at your own risk.
 # Core features
 - send message to at least one receiver
 - add up to 25 MB of attachments to your message
