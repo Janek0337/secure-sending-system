@@ -4,6 +4,9 @@
 
 {% block content %}
 <h1>Welcome {{ owner }}!</h1>
+ <form action="/logout" method="POST">
+    <button type="submit">Log out</button>
+ </form>
 <button onclick="window.location.href='/message'">Create new message</button>
 <h1>Your inbox:</h1>
 <table>

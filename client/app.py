@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, request, flash, url_for, make_response
+from flask import Flask, render_template, redirect, request, flash, url_for, make_response, session
 import requests
 from pydantic import ValidationError
 
@@ -109,6 +109,16 @@ def login():
         flash("Missing or faulty key")
         logger.error(f"No or bad key for \'{username}\'")
         return redirect(url_for('register'))
+    return my_res
+
+@app.route("/logout", methods=["POST"])
+def logout():
+    key_manager.key = None
+    session.clear()
+    my_res = make_response(redirect(url_for('index')))
+    my_res.delete_cookie('access-token')
+    my_res.delete_cookie('session')
+    flash("Logged out")
     return my_res
 
 @app.route("/verify-totp", methods=["GET", "POST"])
