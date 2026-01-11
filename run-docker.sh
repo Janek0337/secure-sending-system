@@ -26,6 +26,6 @@ if [ ! -f "$DB_FILE" ]; then
 fi
 
 docker run -p 5000:5000 \
-  -v $(pwd)/server/database.db:/app/server/database.db \
+  -v $(pwd)/database.db:/app/database.db \
   -v $(pwd)/server/.env:/app/server/.env \
   secure-sending-system
