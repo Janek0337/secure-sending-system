@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 class MessageService:
     def get_key_by_username(self, usernames: DTOs.KeyTransferDTO):
-        if not usernames:
+        if not usernames.key_list:
             return {}
         try:
             db = get_db()
