@@ -50,7 +50,7 @@ def decode_bytes_from_b64(b):
     return base64.b64decode(b)
 
 @app.route('/register', methods=['POST'])
-@limiter.limit("1 per second", override_defaults=True)
+@limiter.limit("1 per minute", override_defaults=True)
 def register():
     try:
         data = request.get_json(silent=True)
@@ -78,7 +78,7 @@ def register():
         return jsonify("Input error"), HTTPStatus.BAD_REQUEST
 
 @app.route('/login', methods=['POST'])
-@limiter.limit("1 per second", override_defaults=True)
+@limiter.limit("10 per minute", override_defaults=True)
 def login():
     try:
         data = request.get_json(silent=True)
