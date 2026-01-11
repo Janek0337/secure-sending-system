@@ -215,7 +215,7 @@ def message():
         data = key_res.json()
         keys = DTOs.KeyTransferDTO(**data)
     except ValidationError as e:
-        print("Validation error:", e.json())
+        logger.error(f"Validation error: {e.json()}")
         flash("Key error happened", "error")
         return redirect(url_for('message'))
 
@@ -446,7 +446,7 @@ def get_key():
             flash("Error. Did not download key.")
             return redirect(url_for('menu'))
 
-        filename = f"keys/public_key_{username}.pem"
+        filename = f"client/keys/public_key_{username}.pem"
         with open(filename, "wb") as f:
             f.write(key.encode("utf-8"))
             flash(f"Key downloaded to file: {filename}", "success")

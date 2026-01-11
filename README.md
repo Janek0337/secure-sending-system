@@ -7,8 +7,8 @@ The project's motto is "Mind the hooks, not the looks".
 - mark as read or delete received messages
 - verify message's authenticity with signed hashes by sender's key
 - account access protected with two-factor authentication using TOTP codes <br> it is advised to prepare an app to handle your secret e.g. Ente Auth
-# Installation and deployment
-1. Deploy server:<br>
+
+# Deploy server:<br>
 This instructions will allow you to deploy application's server with docker at port 5000:
    - clone repository:
    `git clone https://github.com/Janek0337/secure-sending-system`
@@ -16,7 +16,7 @@ This instructions will allow you to deploy application's server with docker at p
    - rename file `server/.env.example` to `server/.env` and fill both keys for server to use (base64)
    - grant running access to the starting script: `sudo chmod +x ./run-docker.sh`
    - run the script: `./run-docker.sh`<br><br>
-2. Install client:<br>
+# Install client:<br>
 Assuming you already have uv installed:
    - clone repository:
       `git clone https://github.com/Janek0337/secure-sending-system`
