@@ -3,7 +3,7 @@
 docker build -t secure-sending-system .
 
 ENV_FILE="./server/.env"
-DB_FILE="./server/database.db"
+DB_FILE="./database.db"
 
 if [ ! -f $ENV_FILE ]; then
   echo "No .env file found. Go to ./server.env and fill your credentials before starting!"
