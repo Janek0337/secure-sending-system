@@ -37,6 +37,8 @@ if len(sys.argv) > 2:
     exit(1)
 
 def validate_address(address):
+    if address is None:
+        return False
     try:
         host, port = address.split(":")
         ipaddress.ip_address(host)
@@ -45,8 +47,10 @@ def validate_address(address):
     except ValueError:
         return False
 
-
-new_address = sys.argv[1]
+if len(sys.argv) == 2:
+    new_address = sys.argv[1]
+else:
+    new_address = None
 address = f"{"127.0.0.1:5000" if not validate_address(new_address) else new_address}"
 
 def get_protocol(address):
