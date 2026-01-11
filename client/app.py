@@ -257,7 +257,7 @@ def message():
             attachments=ready_attachment_list
             )
 
-        if utils.verify_message_size(to_send) == HTTPStatus.CONTENT_TOO_LARGE:
+        if utils.verify_message_size(to_send) == HTTPStatus.REQUEST_ENTITY_TOO_LARGE:
             flash("Either message is too long or attachments too large. Did not send the message", "error")
             return redirect(url_for('message'))
 
@@ -275,7 +275,7 @@ def message():
     elif res.status_code == HTTPStatus.TOO_MANY_REQUESTS:
         flash(f"Too many requests: {res.json().get('limit')}", "error")
         return redirect(url_for('message'))
-    elif res.status_code == HTTPStatus.CONTENT_TOO_LARGE:
+    elif res.status_code == HTTPStatus.REQUEST_ENTITY_TOO_LARGE:
         flash("Content too large", "error")
         return redirect(url_for('message'))
 

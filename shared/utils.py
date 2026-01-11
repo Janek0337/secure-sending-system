@@ -29,7 +29,7 @@ def verify_message_size(message_dto: DTOs.MessageDTO):
     MAX_MESSAGE_SIZE = 5 * 1024
 
     if get_b64_binary_size(message_dto.content[0]) > MAX_MESSAGE_SIZE:
-        return HTTPStatus.CONTENT_TOO_LARGE
+        return HTTPStatus.REQUEST_ENTITY_TOO_LARGE
 
     size_B = 0
     for a in message_dto.attachments:
@@ -38,7 +38,7 @@ def verify_message_size(message_dto: DTOs.MessageDTO):
             break
 
     if size_B > MAX_ATTACHMENT_SIZE:
-        return HTTPStatus.CONTENT_TOO_LARGE
+        return HTTPStatus.REQUEST_ENTITY_TOO_LARGE
 
     return HTTPStatus.OK
 

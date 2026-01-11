@@ -146,8 +146,8 @@ def send_message():
         return jsonify("Input error"), HTTPStatus.BAD_REQUEST
 
     # i assume all messages have the same content, just sent to different people so checking just one message is sufficient
-    if utils.verify_message_size(list_of_messages[0]) == HTTPStatus.CONTENT_TOO_LARGE:
-        return jsonify("Message too long or attachments too large"), HTTPStatus.CONTENT_TOO_LARGE
+    if utils.verify_message_size(list_of_messages[0]) == HTTPStatus.REQUEST_ENTITY_TOO_LARGE:
+        return jsonify("Message too long or attachments too large"), HTTPStatus.REQUEST_ENTITY_TOO_LARGE
 
     save_status = message_service.save_message(token_data['uid'], list_of_messages)
     if save_status is None:
