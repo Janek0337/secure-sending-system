@@ -228,7 +228,7 @@ def delete_message(message_id):
     return jsonify("Success"), HTTPStatus.NO_CONTENT
 
 @app.route("/hello", methods=["GET"])
-@limiter.limit("1 per second")
+@limiter.limit("5 per second")
 def hello():
     return jsonify("Hello!"), HTTPStatus.OK
 
